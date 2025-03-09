@@ -1,5 +1,43 @@
 const Recipe = require("../models/Recipe");
 
+exports.getRecipeById = async (req, res) => {
+    try {
+        const recipe = await Recipe.findById(req.params.id).populate("author", "username profileImage");
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+        res.json(recipe);
+    } catch (error) {
+        console.error("Error fetching recipe:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+exports.createRecipe = async (req, res) => {
+    try {
+        const { title, description, ingredients, instructions, cookingTime, recipeType, image, author } = req.body;
+
+        if (!author) {
+            return res.status(400).json({ message: "Author is required" });
+        }
+
+        const newRecipe = new Recipe({
+            title,
+            description,
+            ingredients,
+            instructions,
+            cookingTime,
+            recipeType,
+            image,
+            author, // Ensure author ID is saved
+        });
+
+        await newRecipe.save();
+        res.status(201).json({ message: "Recipe created successfully", recipe: newRecipe });
+    } catch (error) {
+        console.error("Error creating recipe:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 exports.getRecipes = async (req, res) => {
     try {
         const recipes = await Recipe.find();

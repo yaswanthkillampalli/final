@@ -13,7 +13,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Logout from "./pages/Logout";
 import Recipe from "./pages/Recipe";
-import "../styles.css";
+import "./styles.css";
 
 export default function App() {
     const isLoggedIn = !!localStorage.getItem("token");

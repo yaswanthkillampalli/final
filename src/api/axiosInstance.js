@@ -66,14 +66,21 @@ export const logoutUser = () => {
 ======================== */
 // Fetch User Profile
 export const fetchUserProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+        console.warn("No token found, skipping profile fetch.");
+        return null;  // Return null instead of making an API call
+    }
+
     try {
         const response = await API.get("/users/profile");
         return response.data;
     } catch (error) {
         console.error("Error fetching user profile:", error.response?.data || error.message);
-        throw error;
+        return null;
     }
 };
+
 
 // Update User Profile
 export const updateUserProfile = async (updatedUser) => {

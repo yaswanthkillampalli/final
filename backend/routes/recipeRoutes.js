@@ -1,5 +1,5 @@
 const express = require("express");
-const { getRecipes, addRecipe, searchRecipes, editRecipe, deleteRecipe, addReview } = require("../controllers/recipeController");
+const { getRecipes, addRecipe, searchRecipes, editRecipe, deleteRecipe, addReview, getRecipeById } = require("../controllers/recipeController");
 const authenticate = require("../middleware/authMiddleware"); // Import middleware
 
 const router = express.Router();
@@ -7,7 +7,7 @@ const router = express.Router();
 router.get("/", getRecipes);
 router.get("/search", searchRecipes);
 router.post("/", authenticate, addRecipe); // Protect adding recipes
-
+router.get("/:id", getRecipeById); 
 // Edit Recipe (Protected)
 router.put("/:recipeId", authenticate, editRecipe);
 

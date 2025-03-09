@@ -12,7 +12,7 @@ export default function NewPost() {
         instructions: [""],
         cookingTime: "",
         recipeType: "",
-        image: null,
+        image: "", // Image URL instead of a file
     });
 
     const handleChange = (e) => {
@@ -27,24 +27,28 @@ export default function NewPost() {
         setRecipe({ ...recipe, instructions: [...recipe.instructions, ""] });
     };
 
-    const handleImageChange = (e) => {
-        setRecipe({ ...recipe, image: e.target.files[0] });
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const formData = new FormData();
-        Object.keys(recipe).forEach((key) => {
-            formData.append(key, key === "ingredients" || key === "instructions" ? JSON.stringify(recipe[key]) : recipe[key]);
-        });
-
+    
+        const userId = localStorage.getItem("userId"); // Get user ID from localStorage
+        if (!userId) {
+            console.error("User not logged in!");
+            return;
+        }
+    
+        const recipeData = {
+            ...recipe,
+            author: userId, // Include userId in the request
+        };
+    
         try {
-            await createRecipe(formData);
+            await createRecipe(recipeData);
             navigate("/home");
         } catch (error) {
             console.error("Error creating recipe:", error);
         }
     };
+    
 
     return (
         <div className="new-post-container">
@@ -106,8 +110,8 @@ export default function NewPost() {
                     </select>
                 </div>
                 <div className="form-group">
-                    <label>Recipe Image</label>
-                    <input type="file" accept="image/*" onChange={handleImageChange} required />
+                    <label>Recipe Image (URL)</label>
+                    <input type="text" name="image" placeholder="Paste image URL here" onChange={handleChange} required />
                 </div>
                 <button type="submit" className="submit-button">Publish</button>
             </form>
