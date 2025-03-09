@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../api/axiosInstance";
 import "../styles.css";
 
@@ -16,23 +16,54 @@ export default function Register() {
         e.preventDefault();
         try {
             await registerUser(formData);
-            navigate("/login");
+            navigate("/login"); // Redirect to login page after successful registration
         } catch (error) {
-            setMessage(error.response?.data?.message || "Registration failed");
+            setMessage(error.response?.data?.message || "Registration failed. Please try again.");
         }
     };
 
     return (
-        <div className="auth-container">
-            <h2>Register</h2>
-            <form onSubmit={handleSubmit}>
-                <input type="text" name="username" placeholder="Username" onChange={handleChange} required />
-                <input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-                <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-                <button type="submit">Register</button>
-                {message && <p className="error-message">{message}</p>}
-            </form>
-            <p>Already have an account? <a href="/login">Login</a></p>
+        <div className="auth-page">
+            <div className="auth-container">
+                <h2>Register</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <input
+                            type="text"
+                            name="username"
+                            placeholder="Username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <input
+                            type="password"
+                            name="password"
+                            placeholder="Password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="auth-button">Register</button>
+                    {message && <p className="error-message">{message}</p>}
+                </form>
+                <p className="auth-link">
+                    Already have an account? <Link to="/login">Login</Link>
+                </p>
+            </div>
         </div>
     );
 }

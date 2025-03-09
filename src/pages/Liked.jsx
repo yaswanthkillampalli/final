@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUserProfile } from "../api/axiosInstance";
+import RecipeCard from "../components/RecipeCard";
 import "../styles.css";
 
 export default function Liked() {
@@ -22,24 +23,20 @@ export default function Liked() {
     return (
         <>
             <button className="backButton" onClick={() => navigate(-1)}>⬅ Back</button>
-            <main className="container mt-4">
-                <h1>❤️ Liked Recipes</h1>
-                <div className="row">
-                    {likedRecipes.length === 0 ? (
-                        <p>No liked recipes yet.</p>
-                    ) : (
-                        likedRecipes.map((recipe) => (
-                            <div className="col-md-4 mb-4" key={recipe._id}>
-                                <div className="card recipeCard">
-                                    <img src={recipe.image} className="card-img-top" alt={recipe.title} />
-                                    <div className="card-body">
-                                        <h5 className="card-title">{recipe.title}</h5>
-                                        <p className="card-text">{recipe.description.substring(0, 50)}...</p>
-                                    </div>
+            <main className="recipe-feed">
+                <div className="container">
+                    <h1 className="mb-4">❤️ Liked Recipes</h1>
+                    <div className="row g-4">
+                        {likedRecipes.length === 0 ? (
+                            <p>No liked recipes yet.</p>
+                        ) : (
+                            likedRecipes.map((recipe) => (
+                                <div className="col-md-4 col-lg-4 col-xl-3" key={recipe._id}>
+                                    <RecipeCard recipe={recipe} />
                                 </div>
-                            </div>
-                        ))
-                    )}
+                            ))
+                        )}
+                    </div>
                 </div>
             </main>
         </>

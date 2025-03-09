@@ -11,7 +11,7 @@ export default function NewPost() {
         ingredients: [""],
         instructions: [""],
         cookingTime: "",
-        category: "",
+        recipeType: "",
         image: null,
     });
 
@@ -47,42 +47,69 @@ export default function NewPost() {
     };
 
     return (
-        <div className="container mt-4">
-            <button className="backButton" onClick={() => navigate(-1)}>⬅ Back</button>
-            <h2>New Recipe</h2>
-            <form onSubmit={handleSubmit}>
-                <input type="text" name="title" placeholder="Recipe Title" onChange={handleChange} required />
-                <textarea name="description" placeholder="Recipe Description" onChange={handleChange} required />
-
-                <label>Ingredients</label>
-                {recipe.ingredients.map((ingredient, index) => (
-                    <input key={index} type="text" value={ingredient} onChange={(e) => {
-                        const updatedIngredients = [...recipe.ingredients];
-                        updatedIngredients[index] = e.target.value;
-                        setRecipe({ ...recipe, ingredients: updatedIngredients });
-                    }} required />
-                ))}
-                <button type="button" onClick={addIngredient}>+ Add Ingredient</button>
-
-                <label>Instructions</label>
-                {recipe.instructions.map((step, index) => (
-                    <textarea key={index} rows="2" value={step} onChange={(e) => {
-                        const updatedInstructions = [...recipe.instructions];
-                        updatedInstructions[index] = e.target.value;
-                        setRecipe({ ...recipe, instructions: updatedInstructions });
-                    }} required />
-                ))}
-                <button type="button" onClick={addInstruction}>+ Add Step</button>
-
-                <input type="text" name="cookingTime" placeholder="Cooking Time (e.g., 30 mins)" onChange={handleChange} required />
-                <select name="category" onChange={handleChange} required>
-                    <option value="">Select Category</option>
-                    <option value="Veg">Veg</option>
-                    <option value="Non-Veg">Non-Veg</option>
-                </select>
-
-                <input type="file" accept="image/*" onChange={handleImageChange} required />
-                <button type="submit" className="btn btn-success">Publish</button>
+        <div className="new-post-container">
+            <button className="back-button" onClick={() => navigate(-1)}>⬅ Back</button>
+            <h2 className="new-post-title">New Recipe</h2>
+            <form onSubmit={handleSubmit} className="new-post-form">
+                <div className="form-group">
+                    <label>Recipe Title</label>
+                    <input type="text" name="title" placeholder="Recipe Title" onChange={handleChange} required />
+                </div>
+                <div className="form-group">
+                    <label>Recipe Description</label>
+                    <textarea name="description" placeholder="Recipe Description" onChange={handleChange} required />
+                </div>
+                <div className="form-group">
+                    <label>Ingredients</label>
+                    {recipe.ingredients.map((ingredient, index) => (
+                        <input
+                            key={index}
+                            type="text"
+                            value={ingredient}
+                            onChange={(e) => {
+                                const updatedIngredients = [...recipe.ingredients];
+                                updatedIngredients[index] = e.target.value;
+                                setRecipe({ ...recipe, ingredients: updatedIngredients });
+                            }}
+                            required
+                        />
+                    ))}
+                    <button type="button" className="add-button" onClick={addIngredient}>+ Add Ingredient</button>
+                </div>
+                <div className="form-group">
+                    <label>Instructions</label>
+                    {recipe.instructions.map((step, index) => (
+                        <textarea
+                            key={index}
+                            rows="2"
+                            value={step}
+                            onChange={(e) => {
+                                const updatedInstructions = [...recipe.instructions];
+                                updatedInstructions[index] = e.target.value;
+                                setRecipe({ ...recipe, instructions: updatedInstructions });
+                            }}
+                            required
+                        />
+                    ))}
+                    <button type="button" className="add-button" onClick={addInstruction}>+ Add Step</button>
+                </div>
+                <div className="form-group">
+                    <label>Cooking Time</label>
+                    <input type="text" name="cookingTime" placeholder="Cooking Time (e.g., 30 mins)" onChange={handleChange} required />
+                </div>
+                <div className="form-group">
+                    <label>Category</label>
+                    <select name="recipeType" onChange={handleChange} required>
+                        <option value="">Select Category</option>
+                        <option value="Veg">Veg</option>
+                        <option value="Non-Veg">Non-Veg</option>
+                    </select>
+                </div>
+                <div className="form-group">
+                    <label>Recipe Image</label>
+                    <input type="file" accept="image/*" onChange={handleImageChange} required />
+                </div>
+                <button type="submit" className="submit-button">Publish</button>
             </form>
         </div>
     );

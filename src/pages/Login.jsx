@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { loginUser } from "../api/axiosInstance";
 import "../styles.css";
 
@@ -17,33 +17,51 @@ export default function Login() {
         e.preventDefault();
         try {
             await loginUser(formData);
-            navigate("/home");
+            navigate("/home"); // Redirect to home page after successful login
         } catch (error) {
-            setMessage(error.response?.data?.message || "Login failed");
+            setMessage(error.response?.data?.message || "Login failed. Please try again.");
         }
     };
 
     return (
-        <div className="auth-container">
-            <h2>Login</h2>
-            <form onSubmit={handleSubmit}>
-                <input type="email" name="email" placeholder="Email" onChange={handleChange} required />
-                <div className="password-container">
-                    <input 
-                        type={showPassword ? "text" : "password"} 
-                        name="password" 
-                        placeholder="Password" 
-                        onChange={handleChange} 
-                        required 
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? "Hide" : "Show"}
-                    </button>
-                </div>
-                <button type="submit">Login</button>
-                {message && <p className="error-message">{message}</p>}
-            </form>
-            <p>Don't have an account? <a href="/register">Register</a></p>
+        <div className="auth-page">
+            <div className="auth-container">
+                <h2>Login</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <div className="form-group password-container">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            placeholder="Password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                        />
+                        <button
+                            type="button"
+                            className="toggle-password"
+                            onClick={() => setShowPassword(!showPassword)}
+                        >
+                            {showPassword ? "Hide" : "Show"}
+                        </button>
+                    </div>
+                    <button type="submit" className="auth-button">Login</button>
+                    {message && <p className="error-message">{message}</p>}
+                </form>
+                <p className="auth-link">
+                    Don't have an account? <Link to="/register">Register</Link>
+                </p>
+            </div>
         </div>
     );
 }

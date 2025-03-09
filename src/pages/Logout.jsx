@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { logoutUser } from "../api/axiosInstance";
+import "../styles.css";
 
 export default function Logout() {
     useEffect(() => {
@@ -7,7 +8,7 @@ export default function Logout() {
     }, []);
 
     return (
-        <div className="container text-center mt-5">
+        <div className="logout-container">
             <h2>Logging out...</h2>
             <p>You will be redirected shortly.</p>
         </div>

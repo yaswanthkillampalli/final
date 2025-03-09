@@ -13,7 +13,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Logout from "./pages/Logout";
 import Recipe from "./pages/Recipe";
-import "./styles.css"; // Import Global Styles
+import "../styles.css";
 
 export default function App() {
     const isLoggedIn = !!localStorage.getItem("token");
@@ -30,15 +30,36 @@ export default function App() {
                 <Route path="/recipe/:id" element={<Recipe />} />
 
                 {/* Protected Routes */}
-                <Route path="/newpost" element={isLoggedIn ? <NewPost /> : <Navigate to="/login" />} />
-                <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/login" />} />
-                <Route path="/published" element={isLoggedIn ? <Published /> : <Navigate to="/login" />} />
-                <Route path="/liked" element={isLoggedIn ? <Liked /> : <Navigate to="/login" />} />
-                <Route path="/saved" element={isLoggedIn ? <Saved /> : <Navigate to="/login" />} />
+                <Route
+                    path="/newpost"
+                    element={isLoggedIn ? <NewPost /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/profile"
+                    element={isLoggedIn ? <Profile /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/published"
+                    element={isLoggedIn ? <Published /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/liked"
+                    element={isLoggedIn ? <Liked /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/saved"
+                    element={isLoggedIn ? <Saved /> : <Navigate to="/login" />}
+                />
 
                 {/* Authentication */}
-                <Route path="/login" element={isLoggedIn ? <Navigate to="/home" /> : <Login />} />
-                <Route path="/register" element={isLoggedIn ? <Navigate to="/home" /> : <Register />} />
+                <Route
+                    path="/login"
+                    element={isLoggedIn ? <Navigate to="/home" /> : <Login />}
+                />
+                <Route
+                    path="/register"
+                    element={isLoggedIn ? <Navigate to="/home" /> : <Register />}
+                />
                 <Route path="/logout" element={<Logout />} />
 
                 {/* 404 Page */}

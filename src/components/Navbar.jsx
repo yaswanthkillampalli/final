@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { fetchUserProfile } from "../api/axiosInstance";
+import ProfilePopupMenu from "./ProfilePopupMenu";
 import "../styles.css";
 
 export default function Navbar({ isLoggedIn }) {
@@ -21,20 +22,20 @@ export default function Navbar({ isLoggedIn }) {
     }, [isLoggedIn]);
 
     return (
-        <nav className="navbar navbar-expand-lg navbar-light">
+        <nav className="navbar navbar-expand-lg">
             <div className="container-fluid">
-                {/* Navbar Toggler for Mobile */}
-                <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-
                 {/* Left Section - Navigation Links */}
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto">
-                        <li className="nav-item"><Link className="nav-link" to="/home">Home</Link></li>
-                        <li className="nav-item"><Link className="nav-link" to="/trending">Trending</Link></li>
-                        <li className="nav-item"><Link className="nav-link" to="/about">About Us</Link></li>
-                    </ul>
+                <div className="d-flex align-items-center">
+                    <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+                    <div className="collapse navbar-collapse" id="navbarNav">
+                        <ul className="navbar-nav me-auto">
+                            <li className="nav-item"><Link className="nav-link" to="/home">Home</Link></li>
+                            <li className="nav-item"><Link className="nav-link" to="/trending">Trending</Link></li>
+                            <li className="nav-item"><Link className="nav-link" to="/about">About Us</Link></li>
+                        </ul>
+                    </div>
                 </div>
 
                 {/* Center - Logo */}
@@ -44,28 +45,8 @@ export default function Navbar({ isLoggedIn }) {
 
                 {/* Right Section - Search & Profile */}
                 <div className="d-flex align-items-center">
-                    {/* Search Icon (Now Visible) */}
                     <i className="fas fa-search search-icon me-3" onClick={() => window.location.href = "/search"}></i>
-
-                    {/* Profile Section */}
-                    {isLoggedIn ? (
-                        <div className="dropdown">
-                            <a href="#" className="profile-toggle" data-bs-toggle="dropdown">
-                                <img src={user?.profileImage || "/default-profile.jpg"} alt="Profile" className="rounded-circle profile-img" />
-                            </a>
-                            <ul className="dropdown-menu dropdown-menu-end">
-                                <li><Link className="dropdown-item" to="/profile">Profile</Link></li>
-                                <li><Link className="dropdown-item" to="/published">Published</Link></li>
-                                <li><Link className="dropdown-item" to="/liked">Liked</Link></li>
-                                <li><Link className="dropdown-item" to="/saved">Saved</Link></li>
-                                <li><Link className="dropdown-item" to="/change-password">Change Password</Link></li>
-                                <li><hr className="dropdown-divider" /></li>
-                                <li><Link className="dropdown-item logout-btn" to="/logout">Logout</Link></li>
-                            </ul>
-                        </div>
-                    ) : (
-                        <Link className="btn btn-outline-success" to="/login">Login</Link>
-                    )}
+                    {isLoggedIn ? <ProfilePopupMenu user={user} /> : <Link className="btn btn-outline-success" to="/login">Login</Link>}
                 </div>
             </div>
         </nav>

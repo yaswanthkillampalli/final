@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { fetchRecipeById, likeRecipe, saveRecipe } from "../api/axiosInstance";
 import "../styles.css";
 
 export default function Recipe() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -53,44 +54,47 @@ export default function Recipe() {
     if (error) return <p className="error-text">{error}</p>;
 
     return (
-        <div className="recipe-container">
-            <img src={recipe.image} alt={recipe.title} className="recipe-image" />
-            <div className="recipe-content">
-                <h1>{recipe.title}</h1>
-                <p className="recipe-description">{recipe.description}</p>
+        <div className="recipe-page">
+            <button className="back-button" onClick={() => navigate(-1)}>⬅ Back</button>
+            <div className="recipe-container">
+                <img src={recipe.image} alt={recipe.title} className="recipe-image" />
+                <div className="recipe-content">
+                    <h1>{recipe.title}</h1>
+                    <p className="recipe-description">{recipe.description}</p>
 
-                <h3>🛒 Ingredients</h3>
-                <ul className="recipe-list">
-                    {recipe.ingredients.map((ingredient, index) => (
-                        <li key={index}>{ingredient}</li>
-                    ))}
-                </ul>
+                    <h3>🛒 Ingredients</h3>
+                    <ul className="recipe-list">
+                        {recipe.ingredients.map((ingredient, index) => (
+                            <li key={index}>{ingredient}</li>
+                        ))}
+                    </ul>
 
-                <h3>📖 Instructions</h3>
-                <ol className="recipe-list">
-                    {recipe.instructions.map((step, index) => (
-                        <li key={index}>{step}</li>
-                    ))}
-                </ol>
+                    <h3>📖 Instructions</h3>
+                    <ol className="recipe-list">
+                        {recipe.instructions.map((step, index) => (
+                            <li key={index}>{step}</li>
+                        ))}
+                    </ol>
 
-                <div className="recipe-footer">
-                    <p>⏳ Cooking Time: {recipe.cookingTime}</p>
-                    <p>📌 Category: {recipe.category}</p>
-                    <p>👨‍🍳 Created by: {recipe.createdBy || "Anonymous"}</p>
-                    <p>❤️ {likes} Likes</p>
-                </div>
-
-                {/* Like & Save Buttons */}
-                {isLoggedIn && (
-                    <div className="recipe-actions">
-                        <button className="btn btn-outline-danger" onClick={handleLike}>
-                            ❤️ Like ({likes})
-                        </button>
-                        <button className={`btn ${isSaved ? "btn-success" : "btn-outline-secondary"}`} onClick={handleSave}>
-                            {isSaved ? "✔ Saved" : "💾 Save"}
-                        </button>
+                    <div className="recipe-footer">
+                        <p>⏳ Cooking Time: {recipe.cookingTime}</p>
+                        <p>📌 Category: {recipe.recipeType}</p>
+                        <p>👨‍🍳 Created by: {recipe.author?.username || "Anonymous"}</p>
+                        <p>❤️ {likes} Likes</p>
                     </div>
-                )}
+
+                    {/* Like & Save Buttons */}
+                    {isLoggedIn && (
+                        <div className="recipe-actions">
+                            <button className="btn btn-outline-danger" onClick={handleLike}>
+                                ❤️ Like ({likes})
+                            </button>
+                            <button className={`btn ${isSaved ? "btn-success" : "btn-outline-secondary"}`} onClick={handleSave}>
+                                {isSaved ? "✔ Saved" : "💾 Save"}
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
