@@ -1,26 +1,73 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createRecipe } from "../api/axiosInstance";
+// src/pages/NewPost.jsx
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import { createRecipe, fetchRecipeById, editRecipe } from "../api/axiosInstance"; // Updated import
 import "../styles.css";
 
 export default function NewPost() {
     const navigate = useNavigate();
+    const { recipeId } = useParams();
+    const isEditing = !!recipeId;
     const [recipe, setRecipe] = useState({
         title: "",
         description: "",
         ingredients: [""],
         instructions: [""],
         cookingTime: "",
+        prepTime: "",
+        servings: "",
+        difficulty: "Medium",
         recipeType: "",
-        image: "", // Image URL instead of a file
+        image: "",
     });
+    const [message, setMessage] = useState("");
+    const isLoggedIn = !!sessionStorage.getItem("token");
+
+    useEffect(() => {
+        if (isEditing) {
+            const loadRecipe = async () => {
+                try {
+                    const data = await fetchRecipeById(recipeId);
+                    setRecipe({
+                        title: data.title || "",
+                        description: data.description || "",
+                        ingredients: data.ingredients.map(ing => ing.name || "") || [""],
+                        instructions: data.instructions || [""],
+                        cookingTime: data.cookingTime || "",
+                        prepTime: data.prepTime || "",
+                        servings: data.servings || "",
+                        difficulty: data.difficulty || "Medium",
+                        recipeType: data.recipeType || "",
+                        image: data.image || "",
+                    });
+                } catch (error) {
+                    console.error("Error fetching recipe:", error);
+                    setMessage("Failed to load recipe.");
+                }
+            };
+            loadRecipe();
+        }
+    }, [recipeId]);
 
     const handleChange = (e) => {
         setRecipe({ ...recipe, [e.target.name]: e.target.value });
     };
 
+    const handleIngredientChange = (index, value) => {
+        const updatedIngredients = [...recipe.ingredients];
+        updatedIngredients[index] = value;
+        setRecipe({ ...recipe, ingredients: updatedIngredients });
+    };
+
     const addIngredient = () => {
         setRecipe({ ...recipe, ingredients: [...recipe.ingredients, ""] });
+    };
+
+    const handleInstructionChange = (index, value) => {
+        const updatedInstructions = [...recipe.instructions];
+        updatedInstructions[index] = value;
+        setRecipe({ ...recipe, instructions: updatedInstructions });
     };
 
     const addInstruction = () => {
@@ -29,92 +76,193 @@ export default function NewPost() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-    
-        const userId = localStorage.getItem("userId"); // Get user ID from localStorage
+
+        const userId = sessionStorage.getItem("userId");
         if (!userId) {
-            console.error("User not logged in!");
+            console.error("⚠️ User not logged in!");
+            alert("Please log in before posting a recipe.");
+            navigate("/login");
             return;
         }
-    
+
         const recipeData = {
-            ...recipe,
-            author: userId, // Include userId in the request
+            title: recipe.title.trim(),
+            description: recipe.description.trim(),
+            ingredients: recipe.ingredients.filter(ing => ing.trim() !== "").map(ing => ({ name: ing })),
+            instructions: recipe.instructions.filter(step => step.trim() !== ""),
+            cookingTime: recipe.cookingTime,
+            prepTime: recipe.prepTime,
+            servings: recipe.servings,
+            difficulty: recipe.difficulty,
+            recipeType: recipe.recipeType,
+            image: recipe.image.trim(),
+            author: userId,
         };
-    
+
+        console.log("✅ Final Recipe Data:", recipeData);
+
         try {
-            await createRecipe(recipeData);
-            navigate("/home");
+            if (isEditing) {
+                const response = await editRecipe(recipeId, recipeData); // Changed to editRecipe
+                console.log("✅ Recipe updated successfully:", response);
+                setMessage("Recipe updated successfully!");
+            } else {
+                const response = await createRecipe(recipeData);
+                console.log("✅ Recipe created successfully:", response);
+                setMessage("Recipe added successfully!");
+            }
+            setTimeout(() => navigate("/home"), 2000);
         } catch (error) {
-            console.error("Error creating recipe:", error);
+            console.error("❌ Error:", error.response?.data || error.message);
+            setMessage(error.response?.data?.message || `Failed to ${isEditing ? "update" : "add"} recipe.`);
         }
     };
-    
 
     return (
-        <div className="new-post-container">
-            <button className="back-button" onClick={() => navigate(-1)}>⬅ Back</button>
-            <h2 className="new-post-title">New Recipe</h2>
-            <form onSubmit={handleSubmit} className="new-post-form">
-                <div className="form-group">
-                    <label>Recipe Title</label>
-                    <input type="text" name="title" placeholder="Recipe Title" onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                    <label>Recipe Description</label>
-                    <textarea name="description" placeholder="Recipe Description" onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                    <label>Ingredients</label>
-                    {recipe.ingredients.map((ingredient, index) => (
+        <>
+            <Navbar isLoggedIn={isLoggedIn} />
+            <div className="new-post-container">
+                <button className="back-button" onClick={() => navigate(-1)}>⬅ Back</button>
+                <h2 className="new-post-title">{isEditing ? "Edit Recipe" : "New Recipe"}</h2>
+                <form onSubmit={handleSubmit} className="new-post-form">
+                    <div className="form-group">
+                        <label>Recipe Title</label>
                         <input
-                            key={index}
                             type="text"
-                            value={ingredient}
-                            onChange={(e) => {
-                                const updatedIngredients = [...recipe.ingredients];
-                                updatedIngredients[index] = e.target.value;
-                                setRecipe({ ...recipe, ingredients: updatedIngredients });
-                            }}
+                            name="title"
+                            placeholder="Recipe Title"
+                            value={recipe.title}
+                            onChange={handleChange}
                             required
                         />
-                    ))}
-                    <button type="button" className="add-button" onClick={addIngredient}>+ Add Ingredient</button>
-                </div>
-                <div className="form-group">
-                    <label>Instructions</label>
-                    {recipe.instructions.map((step, index) => (
+                    </div>
+                    <div className="form-group">
+                        <label>Recipe Description</label>
                         <textarea
-                            key={index}
-                            rows="2"
-                            value={step}
-                            onChange={(e) => {
-                                const updatedInstructions = [...recipe.instructions];
-                                updatedInstructions[index] = e.target.value;
-                                setRecipe({ ...recipe, instructions: updatedInstructions });
-                            }}
+                            name="description"
+                            placeholder="Recipe Description"
+                            value={recipe.description}
+                            onChange={handleChange}
                             required
                         />
-                    ))}
-                    <button type="button" className="add-button" onClick={addInstruction}>+ Add Step</button>
-                </div>
-                <div className="form-group">
-                    <label>Cooking Time</label>
-                    <input type="text" name="cookingTime" placeholder="Cooking Time (e.g., 30 mins)" onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                    <label>Category</label>
-                    <select name="recipeType" onChange={handleChange} required>
-                        <option value="">Select Category</option>
-                        <option value="Veg">Veg</option>
-                        <option value="Non-Veg">Non-Veg</option>
-                    </select>
-                </div>
-                <div className="form-group">
-                    <label>Recipe Image (URL)</label>
-                    <input type="text" name="image" placeholder="Paste image URL here" onChange={handleChange} required />
-                </div>
-                <button type="submit" className="submit-button">Publish</button>
-            </form>
-        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Ingredients</label>
+                        {recipe.ingredients.map((ingredient, index) => (
+                            <input
+                                key={index}
+                                type="text"
+                                value={ingredient}
+                                onChange={(e) => handleIngredientChange(index, e.target.value)}
+                                placeholder={`Ingredient ${index + 1}`}
+                                required
+                            />
+                        ))}
+                        <button type="button" className="add-button" onClick={addIngredient}>
+                            + Add Ingredient
+                        </button>
+                    </div>
+                    <div className="form-group">
+                        <label>Instructions</label>
+                        {recipe.instructions.map((step, index) => (
+                            <textarea
+                                key={index}
+                                rows="2"
+                                value={step}
+                                onChange={(e) => handleInstructionChange(index, e.target.value)}
+                                placeholder={`Step ${index + 1}`}
+                                required
+                            />
+                        ))}
+                        <button type="button" className="add-button" onClick={addInstruction}>
+                            + Add Step
+                        </button>
+                    </div>
+                    <div className="form-group">
+                        <label>Cooking Time (minutes)</label>
+                        <select
+                            name="cookingTime"
+                            value={recipe.cookingTime}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Select Cooking Time</option>
+                            <option value="15">15 mins</option>
+                            <option value="30">30 mins</option>
+                            <option value="45">45 mins</option>
+                            <option value="60">60 mins</option>
+                            <option value="90">90 mins</option>
+                            <option value="120">120 mins</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Prep Time (minutes)</label>
+                        <select
+                            name="prepTime"
+                            value={recipe.prepTime}
+                            onChange={handleChange}
+                        >
+                            <option value="">Select Prep Time</option>
+                            <option value="5">5 mins</option>
+                            <option value="10">10 mins</option>
+                            <option value="15">15 mins</option>
+                            <option value="30">30 mins</option>
+                            <option value="45">45 mins</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Servings</label>
+                        <input
+                            type="number"
+                            name="servings"
+                            placeholder="e.g., 4"
+                            value={recipe.servings}
+                            onChange={handleChange}
+                            min="1"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label>Difficulty</label>
+                        <select
+                            name="difficulty"
+                            value={recipe.difficulty}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Category</label>
+                        <select name="recipeType" value={recipe.recipeType} onChange={handleChange} required>
+                            <option value="">Select Category</option>
+                            <option value="Veg">Veg</option>
+                            <option value="Non-Veg">Non-Veg</option>
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Recipe Image (URL)</label>
+                        <input
+                            type="text"
+                            name="image"
+                            placeholder="Paste image URL here"
+                            value={recipe.image}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                    <button type="submit" className="submit-button">
+                        {isEditing ? "Update Recipe" : "Publish"}
+                    </button>
+                    {message && (
+                        <p className={message.includes("success") ? "success-message" : "error-message"}>
+                            {message}
+                        </p>
+                    )}
+                </form>
+            </div>
+        </>
     );
 }

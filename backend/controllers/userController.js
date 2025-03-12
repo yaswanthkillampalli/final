@@ -1,247 +1,242 @@
 const User = require("../models/User");
 const Recipe = require("../models/Recipe");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
 
-// Get User Profile
+dotenv.config();
+
+// backend/controllers/userController.js (excerpt)
+exports.registerUser = async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+        if (existingUser) {
+            return res.status(400).json({ message: "Username or email already taken" });
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ username, email, password: hashedPassword });
+        await newUser.save();
+        res.status(201).json({ 
+            message: "User created",
+            userId: newUser._id,
+            username: newUser.username,
+            email: newUser.email
+        });
+    } catch (error) {
+        console.error("Error registering user:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.loginUser = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(400).json({ message: "Wrong email or password" });
+        }
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+        res.status(200).json({ token, user: { id: user._id, username: user.username, email: user.email } });
+    } catch (error) {
+        console.error("Error logging in:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
 exports.getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select("-password");
         if (!user) return res.status(404).json({ message: "User not found" });
-
-        res.json(user);
+        res.status(200).json(user);
     } catch (error) {
-        console.error("Error fetching user profile:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching profile:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
-
-// Update User Profile
 exports.updateUserProfile = async (req, res) => {
     try {
-        const { fullName, email, profileImage, username,bio } = req.body;
+        const { username, email } = req.body;
         const user = await User.findById(req.user.id);
-
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        // Check if username is already taken (except by the current user)
-        if (username && username !== user.username) {
-            const existingUser = await User.findOne({ username });
-            if (existingUser) return res.status(400).json({ message: "Username already exists" });
-            user.username = username;
-        }
-
-        user.fullName = fullName || user.fullName;
-        user.email = email || user.email;
-        user.profileImage = profileImage || user.profileImage;
-        user.bio = bio || user.bio;
-
+        if (username) user.username = username;
+        if (email) user.email = email;
         await user.save();
-        res.json({ message: "Profile updated successfully", user });
+        res.status(200).json({ message: "Profile updated", user });
     } catch (error) {
-        console.error("Error in updateUserProfile:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
-
-
-// Get Saved Recipes for User
-exports.getSavedRecipes = async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).populate("savedRecipes");
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        res.json(user.savedRecipes);
-    } catch (error) {
-        console.error("Error in getSavedRecipes:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-// Save a Recipe for User
-exports.saveRecipe = async (req, res) => {
-    try {
-        const { recipeId } = req.body;
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        if (!user.savedRecipes.includes(recipeId)) {
-            user.savedRecipes.push(recipeId);
-            await user.save();
-        }
-
-        res.json({ message: "Recipe saved successfully", savedRecipes: user.savedRecipes });
-    } catch (error) {
-        console.error("Error in saveRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-// Like a Recipe
-exports.likeRecipe = async (req, res) => {
-    try {
-        const { recipeId } = req.body;
-        const user = await User.findById(req.user.id);
-
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        // Check if the user has already liked this recipe
-        if (user.likedRecipes.includes(recipeId)) {
-            return res.status(400).json({ message: "You already liked this recipe" });
-        }
-
-        user.likedRecipes.push(recipeId);
-        await user.save();
-
-        res.json({ message: "Recipe liked successfully", likedRecipes: user.likedRecipes });
-    } catch (error) {
-        console.error("Error in likeRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-// Publish a Recipe
-exports.publishRecipe = async (req, res) => {
-    try {
-        const { title, image, ingredients, steps, recipeType } = req.body;
-
-        if (!title || !image || !ingredients || !steps || !recipeType) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-
-        if (!["Veg", "Non-Veg"].includes(recipeType)) {
-            return res.status(400).json({ message: "Invalid recipe type. Must be 'Veg' or 'Non-Veg'." });
-        }
-
-        const newRecipe = new Recipe({
-            title,
-            image,
-            ingredients,
-            steps,
-            recipeType,
-            author: req.user.id,
-        });
-
-        await newRecipe.save();
-
-        const user = await User.findById(req.user.id);
-        user.publishedRecipes.push(newRecipe._id);
-        await user.save();
-
-        res.status(201).json({ message: "Recipe published successfully", newRecipe });
-    } catch (error) {
-        console.error("Error in publishRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-
-
-// Get User's Liked & Published Recipes
-exports.getUserRecipes = async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id)
-            .populate("likedRecipes")
-            .populate("publishedRecipes");
-
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        res.json({
-            likedRecipes: user.likedRecipes,
-            publishedRecipes: user.publishedRecipes
-        });
-    } catch (error) {
-        console.error("Error in getUserRecipes:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-// Unlike a Recipe
-exports.unlikeRecipe = async (req, res) => {
-    try {
-        const { recipeId } = req.body;
-        const user = await User.findById(req.user.id);
-
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        // Remove the recipe from likedRecipes
-        user.likedRecipes = user.likedRecipes.filter(id => id.toString() !== recipeId);
-        await user.save();
-
-        res.json({ message: "Recipe unliked successfully", likedRecipes: user.likedRecipes });
-    } catch (error) {
-        console.error("Error in unlikeRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-// Remove Saved Recipe
-exports.removeSavedRecipe = async (req, res) => {
-    try {
-        const { recipeId } = req.body;
-        const user = await User.findById(req.user.id);
-
-        if (!user) return res.status(404).json({ message: "User not found" });
-
-        // Remove the recipe from savedRecipes
-        user.savedRecipes = user.savedRecipes.filter(id => id.toString() !== recipeId);
-        await user.save();
-
-        res.json({ message: "Recipe removed from saved list", savedRecipes: user.savedRecipes });
-    } catch (error) {
-        console.error("Error in removeSavedRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
 exports.followUserByUsername = async (req, res) => {
     try {
-        const { username } = req.params;
-        const targetUser = await User.findOne({ username });
-
-        if (!targetUser) return res.status(404).json({ message: "User not found" });
-
-        const user = await User.findById(req.user.id);
-
-        if (user.following.includes(targetUser._id)) {
-            return res.status(400).json({ message: "You are already following this user" });
+        const userToFollow = await User.findOne({ username: req.params.username });
+        const currentUser = await User.findById(req.user.id);
+        if (!userToFollow || !currentUser) return res.status(404).json({ message: "User not found" });
+        if (!currentUser.following.includes(userToFollow._id)) {
+            currentUser.following.push(userToFollow._id);
+            userToFollow.followers.push(currentUser._id);
+            await Promise.all([currentUser.save(), userToFollow.save()]);
         }
-
-        user.following.push(targetUser._id);
-        targetUser.followers.push(req.user.id);
-
-        await user.save();
-        await targetUser.save();
-
-        res.json({ message: "User followed successfully" });
+        res.status(200).json({ message: "User followed" });
     } catch (error) {
-        console.error("Error in followUserByUsername:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error following user:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.checkUsernameAvailability = async (req, res) => {
+    try {
+        const usernameTaken = await User.exists({ username: req.params.username });
+        res.status(200).json({ available: !usernameTaken });
+    } catch (error) {
+        console.error("Error checking username:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
 exports.searchUserByUsername = async (req, res) => {
     try {
         const { username } = req.params;
-        const user = await User.findOne({ username }).select("-password"); // Hide password
-
+        const user = await User.findOne({ username }).select("-password");
         if (!user) return res.status(404).json({ message: "User not found" });
-
-        res.json(user);
+        res.status(200).json(user);
     } catch (error) {
-        console.error("Error in searchUserByUsername:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error searching user:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
-exports.checkUsernameAvailability = async (req, res) => {
-    try {
-        const { username } = req.params;
-        const user = await User.findOne({ username });
 
-        if (user) {
-            return res.status(400).json({ message: "Username is already taken" });
-        }
-        res.json({ message: "Username is available" });
+exports.getUserRecipes = async (req, res) => {
+    try {
+        const recipes = await Recipe.find({ author: req.params.userId });
+        res.status(200).json(recipes);
     } catch (error) {
-        console.error("Error in checkUsernameAvailability:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching user recipes:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.likeRecipe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const { recipeId } = req.body;
+        const recipe = await Recipe.findById(recipeId);
+
+        if (!user || !recipe) return res.status(404).json({ message: "User or recipe not found" });
+        if (user.likedRecipes.includes(recipeId)) {
+            return res.status(400).json({ message: "Already liked" });
+        }
+
+        user.likedRecipes.push(recipeId);
+        recipe.likedBy.push(req.user.id);
+        recipe.likes.push(req.user.id); // Keep likes in sync
+        await Promise.all([user.save(), recipe.save()]);
+        res.status(200).json({ message: "Recipe liked" });
+    } catch (error) {
+        console.error("Error liking recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.unlikeRecipe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const { recipeId } = req.body;
+        const recipe = await Recipe.findById(recipeId);
+
+        if (!user || !recipe) return res.status(404).json({ message: "User or recipe not found" });
+        user.likedRecipes = user.likedRecipes.filter(id => id.toString() !== recipeId);
+        recipe.likedBy = recipe.likedBy.filter(id => id.toString() !== req.user.id);
+        recipe.likes = recipe.likes.filter(id => id.toString() !== req.user.id);
+        await Promise.all([user.save(), recipe.save()]);
+        res.status(200).json({ message: "Recipe unliked" });
+    } catch (error) {
+        console.error("Error unliking recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.saveRecipe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const { recipeId } = req.body;
+        const recipe = await Recipe.findById(recipeId);
+
+        if (!user || !recipe) return res.status(404).json({ message: "User or recipe not found" });
+        if (user.savedRecipes.includes(recipeId)) {
+            return res.status(400).json({ message: "Already saved" });
+        }
+
+        user.savedRecipes.push(recipeId);
+        recipe.savedBy.push(req.user.id);
+        await Promise.all([user.save(), recipe.save()]);
+        res.status(200).json({ message: "Recipe saved" });
+    } catch (error) {
+        console.error("Error saving recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.removeSavedRecipe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const { recipeId } = req.body;
+        const recipe = await Recipe.findById(recipeId);
+
+        if (!user || !recipe) return res.status(404).json({ message: "User or recipe not found" });
+        user.savedRecipes = user.savedRecipes.filter(id => id.toString() !== recipeId);
+        recipe.savedBy = recipe.savedBy.filter(id => id.toString() !== req.user.id);
+        await Promise.all([user.save(), recipe.save()]);
+        res.status(200).json({ message: "Recipe removed from saved" });
+    } catch (error) {
+        console.error("Error removing saved recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+exports.getCurrentUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id)
+            .populate("following", "username")
+            .populate("followers", "username");
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.status(200).json(user);
+    } catch (error) {
+        console.error("Error fetching current user:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+// backend/controllers/userController.js (partial update)
+exports.getUserProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id)
+            .populate("followers", "username profileImage")
+            .populate("following", "username profileImage")
+            .populate("publishedRecipes", "title image")
+            .populate("savedRecipes", "title image")
+            .populate("likedRecipes", "title image");
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.status(200).json(user);
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.unfollowUserByUsername = async (req, res) => {
+    try {
+        const userToUnfollow = await User.findOne({ username: req.params.username });
+        const currentUser = await User.findById(req.user.id);
+        if (!userToUnfollow || !currentUser) return res.status(404).json({ message: "User not found" });
+        currentUser.following = currentUser.following.filter(id => id.toString() !== userToUnfollow._id.toString());
+        userToUnfollow.followers = userToUnfollow.followers.filter(id => id.toString() !== currentUser._id.toString());
+        await Promise.all([currentUser.save(), userToUnfollow.save()]);
+        res.status(200).json({ message: "User unfollowed" });
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };

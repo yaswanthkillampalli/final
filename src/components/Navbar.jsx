@@ -4,8 +4,10 @@ import { fetchUserProfile } from "../api/axiosInstance";
 import ProfilePopupMenu from "./ProfilePopupMenu";
 import "../styles.css";
 
-export default function Navbar({ isLoggedIn }) {
+export default function Navbar() {
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true); // ✅ Added loading state
+    const isLoggedIn = !!sessionStorage.getItem("token");
 
     useEffect(() => {
         const loadUserProfile = async () => {
@@ -17,6 +19,7 @@ export default function Navbar({ isLoggedIn }) {
                     console.error("Error fetching user profile:", error);
                 }
             }
+            setLoading(false); // ✅ Ensure UI updates after fetching data
         };
         loadUserProfile();
     }, [isLoggedIn]);
@@ -46,7 +49,14 @@ export default function Navbar({ isLoggedIn }) {
                 {/* Right Section - Search & Profile */}
                 <div className="d-flex align-items-center">
                     <i className="fas fa-search search-icon me-3" onClick={() => window.location.href = "/search"}></i>
-                    {isLoggedIn ? <ProfilePopupMenu user={user} /> : <Link className="btn btn-outline-success" to="/login">Login</Link>}
+                    
+                    {loading ? (
+                        <p className="loading-text">Loading...</p> // ✅ Show loading state
+                    ) : isLoggedIn && user ? (
+                        <ProfilePopupMenu user={user} />
+                    ) : (
+                        <Link className="btn btn-outline-success" to="/login">Login</Link>
+                    )}
                 </div>
             </div>
         </nav>

@@ -294,6 +294,24 @@
 .save-btn {
     margin-left: auto;
 }
+/* src/styles.css */
+.follow-btn.following {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.recipe-actions {
+    justify-content: flex-start; /* Align buttons to the left for logged-in users */
+}
+
+.recipe-actions.logged-out {
+    justify-content: flex-end; /* Align share button to the right for logged-out users */
+}
+
+/* Ensure icons align nicely */
+.recipe-details i {
+    margin-right: 5px;
+}
 
 /* recipe actions */
 /* Recipe Actions for Published Page */
@@ -785,25 +803,293 @@
     font-size: 1.1rem;
     color: #555;
 }
-/* floating button */
-.floating-btn {
+/* src/styles.css */
+/* Container for floating buttons */
+.floating-buttons {
     position: fixed;
     bottom: 20px;
     right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between buttons */
+}
+
+/* Base style for floating buttons */
+.floating-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
     background-color: #007bff;
     color: white;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
     text-decoration: none;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    transition: background-color 0.3s ease-in-out;
+    border: none;
+    cursor: pointer;
 }
 
-.floating-btn:hover {
-    background-color: #0056b3;
+/* Filter button (above New Post) */
+.filter-btn {
+    background-color: #6c757d; /* Grey to differentiate */
+}
+
+/* New Post button (below Filter) */
+.new-post-btn {
+    background-color: #007bff; /* Keep original blue */
+}
+/* src/styles.css */
+.recipe-page {
+    padding: 20px;
+}
+
+.recipe-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.recipe-header {
+    padding: 15px;
+}
+
+.recipe-author-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.recipe-author-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.recipe-image {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+}
+
+.recipe-content {
+    padding: 20px;
+}
+
+.recipe-description {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.recipe-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.recipe-details i {
+    color: green;
+    margin-right: 5px;
+}
+
+.recipe-list {
+    padding-left: 20px;
+    margin-bottom: 20px;
+}
+
+.recipe-list li {
+    margin-bottom: 5px;
+}
+
+.recipe-footer {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.recipe-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.back-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 5px 15px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+/* src/styles.css */
+.profile-page {
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+
+.profile-container {
+    max-width: 800px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    padding: 30px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-image {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #007bff;
+    margin-right: 20px;
+    transition: transform 0.3s ease;
+}
+
+.profile-image:hover {
+    transform: scale(1.05);
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-username {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.profile-fullname {
+    font-size: 1.2rem;
+    color: #7f8c8d;
+    margin: 5px 0;
+}
+
+.profile-bio {
+    font-size: 1rem;
+    color: #555;
+    margin: 10px 0;
+}
+
+.profile-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    margin-top: 10px;
+}
+
+.clickable-stat {
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.clickable-stat:hover {
+    color: #007bff;
+}
+
+.profile-recipe-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: 10px;
+}
+
+.profile-recipe-stats i {
+    color: #e74c3c;
+    margin-right: 5px;
+}
+
+.profile-actions {
+    padding: 20px;
+    text-align: center;
+}
+
+.profile-edit-form {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+.form-group textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+.profile-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.back-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 8px 15px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.back-button:hover {
+    background: #0056b3;
+}
+
+/* Modal Adjustments */
+.modal-content {
+    border-radius: 15px;
+}
+
+.modal-header {
+    background: #007bff;
+    color: #fff;
+}
+
+.modal-body {
+    max-height: 400px;
+    overflow-y: auto;
 }

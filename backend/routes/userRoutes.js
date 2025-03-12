@@ -1,44 +1,53 @@
+// backend/routes/userRoutes.js
 const express = require("express");
-const { getUserProfile, updateUserProfile, getSavedRecipes, saveRecipe, searchUserByUsername ,checkUsernameAvailability} = require("../controllers/userController");
-const { followUserByUsername, likeRecipe, publishRecipe, getUserRecipes,unlikeRecipe, removeSavedRecipe } = require("../controllers/userController");
+const {
+    registerUser,
+    loginUser,
+    getUserProfile,
+    updateUserProfile,
+    followUserByUsername,
+    unfollowUserByUsername,
+    checkUsernameAvailability,
+    searchUserByUsername,
+    getUserRecipes,
+    likeRecipe,
+    unlikeRecipe,
+    saveRecipe,
+    removeSavedRecipe,
+} = require("../controllers/userController");
 const authenticate = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Get User Profile
+// Register User
+router.post("/register", registerUser);
+
+// Login User
+router.post("/login", loginUser);
+
+// Get & Update Current User Profile
 router.get("/profile", authenticate, getUserProfile);
-
-// Search user by username
-router.get("/search/:username", searchUserByUsername);
-
-router.get("/check-username/:username", checkUsernameAvailability);
-
-// Follow a user
-router.post("/follow/username/:username", authenticate, followUserByUsername);
-
-// Unlike a Recipe
-router.post("/unlike", authenticate, unlikeRecipe);
-
-// Remove a Saved Recipe
-router.post("/remove-saved", authenticate, removeSavedRecipe);
-
-
-// Update User Profile
 router.put("/profile", authenticate, updateUserProfile);
 
-// Get Saved Recipes
-router.get("/saved", authenticate, getSavedRecipes);
+// Search User by Username
+router.get("/search/:username", searchUserByUsername);
 
-// Save a Recipe
-router.post("/saved", authenticate, saveRecipe);
+// Check Username Availability
+router.get("/check-username/:username", checkUsernameAvailability);
 
-// Like a Recipe
+// Follow & Unfollow a User by Username
+router.post("/follow/username/:username", authenticate, followUserByUsername);
+router.post("/unfollow/username/:username", authenticate, unfollowUserByUsername);
+
+// Like & Unlike a Recipe
 router.post("/like", authenticate, likeRecipe);
+router.post("/unlike", authenticate, unlikeRecipe);
 
-// Publish a Recipe
-router.post("/publish", authenticate, publishRecipe);
+// Save & Remove a Saved Recipe
+router.post("/save", authenticate, saveRecipe);
+router.post("/unsave", authenticate, removeSavedRecipe);
 
-// Get User's Liked & Published Recipes
-router.get("/my-recipes", authenticate, getUserRecipes);
+// Get User's Recipes
+router.get("/:userId/recipes", getUserRecipes);
 
 module.exports = router;

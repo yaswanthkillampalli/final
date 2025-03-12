@@ -1,21 +1,45 @@
 const express = require("express");
-const { getRecipes, addRecipe, searchRecipes, editRecipe, deleteRecipe, addReview, getRecipeById } = require("../controllers/recipeController");
-const authenticate = require("../middleware/authMiddleware"); // Import middleware
+const {
+    getRecipes,
+    addRecipe,
+    searchRecipes,
+    editRecipe,
+    deleteRecipe,
+    getRecipeById,
+    likeRecipe,
+    saveRecipe,
+    unsaveRecipe,
+    saveDraft,
+    shareRecipe,
+    getTrendingRecipes, 
+} = require("../controllers/recipeController");
+const authenticate = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// Like a Recipe (toggle behavior)
+router.post("/:recipeId/like", authenticate, likeRecipe);
+
+// Save & Unsave a Recipe
+router.post("/:recipeId/save", authenticate, saveRecipe);
+router.post("/:recipeId/unsave", authenticate, unsaveRecipe);
+
+// Get Recipes
 router.get("/", getRecipes);
 router.get("/search", searchRecipes);
-router.post("/", authenticate, addRecipe); // Protect adding recipes
-router.get("/:id", getRecipeById); 
-// Edit Recipe (Protected)
+router.get("/:id", getRecipeById);
+
+// Create, Edit & Delete Recipes
+router.post("/", authenticate, addRecipe);
 router.put("/:recipeId", authenticate, editRecipe);
-
-// Delete Recipe (Protected)
 router.delete("/:recipeId", authenticate, deleteRecipe);
+router.get("/:id", getRecipeById); // Assumed for fetching
 
-// Add a review to a recipe
-router.post("/:recipeId/review", authenticate, addReview);
+// Save Draft
+router.post("/draft", authenticate, saveDraft); // Changed from "/:recipeId/draft"
 
+// Share Recipe
+router.post("/:recipeId/share", authenticate, shareRecipe);
+router.get("/trending", getTrendingRecipes);
 
 module.exports = router;

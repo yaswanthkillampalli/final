@@ -5,37 +5,37 @@ const API = axios.create({
     headers: { "Content-Type": "application/json" },
 });
 
-// Attach Token to Requests if User is Logged In
 API.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
 }, (error) => Promise.reject(error));
 
-// Handle Invalid Token Responses
-API.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Token is invalid or expired
-            localStorage.removeItem("token"); // Clear the invalid token
-            window.location.href = "/login"; // Redirect to login page
-        }
-        return Promise.reject(error);
-    }
-);
-
 /* ========================
     🛠️ AUTHENTICATION REQUESTS
 ======================== */
-// Login User
+export const registerUser = async (userData) => {
+    try {
+        const response = await API.post("/users/register", userData);
+        return response.data;
+    } catch (error) {
+        console.error("Error registering user:", error);
+        throw error;
+    }
+};
+
+
+
 export const loginUser = async (credentials) => {
     try {
-        const response = await API.post("/auth/login", credentials);
-        if (response.data.token) {
-            localStorage.setItem("token", response.data.token); // Store the token
+        const response = await API.post("/users/login", credentials);
+        const { token, userId } = response.data;
+        if (token) {
+            sessionStorage.setItem("token", token);
+            sessionStorage.setItem("userId", userId);
+            API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         }
         return response.data;
     } catch (error) {
@@ -44,131 +44,140 @@ export const loginUser = async (credentials) => {
     }
 };
 
-// Register User
-export const registerUser = async (userData) => {
-    try {
-        const response = await API.post("/auth/register", userData);
-        return response.data;
-    } catch (error) {
-        console.error("Error registering user:", error.response?.data || error.message);
-        throw error;
-    }
-};
 
-// Logout User (Remove token)
+
 export const logoutUser = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/"; // Redirect to home page
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("userId");
+    window.location.href = "/login";
 };
 
 /* ========================
-    👤 USER PROFILE REQUESTS
+    👤 USER REQUESTS
 ======================== */
-// Fetch User Profile
-export const fetchUserProfile = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-        console.warn("No token found, skipping profile fetch.");
-        return null;  // Return null instead of making an API call
-    }
-
+export const getUserProfile = async () => {
     try {
         const response = await API.get("/users/profile");
         return response.data;
     } catch (error) {
-        console.error("Error fetching user profile:", error.response?.data || error.message);
-        return null;
+        console.error("Error fetching profile:", error);
+        throw error;
     }
 };
 
-
-// Update User Profile
 export const updateUserProfile = async (updatedUser) => {
     try {
         const response = await API.put("/users/profile", updatedUser);
         return response.data;
     } catch (error) {
-        console.error("Error updating user profile:", error.response?.data || error.message);
+        console.error("Error updating profile:", error);
         throw error;
     }
 };
 
-// Check Username Availability
+export const followUserByUsername = async (username) => {
+    try {
+        const response = await API.post(`/users/follow/username/${username}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error following user:", error);
+        throw error;
+    }
+};
+
 export const checkUsernameAvailability = async (username) => {
     try {
         const response = await API.get(`/users/check-username/${username}`);
         return response.data;
     } catch (error) {
-        console.error("Error checking username availability:", error.response?.data || error.message);
+        console.error("Error checking username:", error);
+        throw error;
+    }
+};
+
+export const searchUserByUsername = async (username) => {
+    try {
+        const response = await API.get(`/users/search/${username}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error searching user:", error);
+        throw error;
+    }
+};
+
+export const getUserRecipes = async (userId) => {
+    try {
+        const response = await API.get(`/users/${userId}/recipes`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipes:", error);
+        throw error;
+    }
+};
+
+export const likeRecipeUser = async (recipeId) => {
+    try {
+        const response = await API.post("/users/like", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error liking recipe (user):", error);
+        throw error;
+    }
+};
+
+export const unlikeRecipeUser = async (recipeId) => {
+    try {
+        const response = await API.post("/users/unlike", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error unliking recipe (user):", error);
+        throw error;
+    }
+};
+
+export const saveRecipeUser = async (recipeId) => {
+    try {
+        const response = await API.post("/users/save", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error saving recipe (user):", error);
+        throw error;
+    }
+};
+
+export const removeSavedRecipeUser = async (recipeId) => {
+    try {
+        const response = await API.post("/users/unsave", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error unsaving recipe (user):", error);
         throw error;
     }
 };
 
 /* ========================
-    🏠 HOME PAGE REQUESTS
+    🍳 RECIPE REQUESTS
 ======================== */
-// Fetch all recipes
-export const fetchRecipes = async () => {
+export const getRecipes = async () => {
     try {
         const response = await API.get("/recipes");
         return response.data;
     } catch (error) {
-        console.error("Error fetching recipes:", error.response?.data || error.message);
+        console.error("Error fetching recipes:", error);
         throw error;
     }
 };
 
-// Fetch trending recipes
-export const fetchTrendingRecipes = async () => {
-    try {
-        const response = await API.get("/recipes/trending");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching trending recipes:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Fetch recent recipes
-export const fetchRecentRecipes = async () => {
-    try {
-        const response = await API.get("/recipes/recent");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recent recipes:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-/* ========================
-    🆕 NEW POST REQUESTS
-======================== */
-// Create a new recipe
-export const createRecipe = async (recipeData) => {
+export const addRecipe = async (recipeData) => {
     try {
         const response = await API.post("/recipes", recipeData);
         return response.data;
     } catch (error) {
-        console.error("Error creating recipe:", error.response?.data || error.message);
+        console.error("Error adding recipe:", error);
         throw error;
     }
 };
 
-// Save a recipe as draft
-export const saveDraftRecipe = async (recipeData) => {
-    try {
-        const response = await API.post("/recipes/draft", recipeData);
-        return response.data;
-    } catch (error) {
-        console.error("Error saving draft recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-/* ========================
-    🔎 SEARCH REQUESTS
-======================== */
-// Search recipes with query
 export const searchRecipes = async (query, recipeType, sortBy, page = 1, limit = 10) => {
     try {
         const response = await API.get("/recipes/search", {
@@ -176,92 +185,177 @@ export const searchRecipes = async (query, recipeType, sortBy, page = 1, limit =
         });
         return response.data;
     } catch (error) {
-        console.error("Error searching recipes:", error.response?.data || error.message);
+        console.error("Error searching recipes:", error);
         throw error;
     }
 };
 
-/* ========================
-    ❤️ LIKE & SAVE REQUESTS
-======================== */
-// Like a recipe
-export const likeRecipe = async (recipeId) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/like`);
-        return response.data;
-    } catch (error) {
-        console.error("Error liking recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
 
-// Unlike a recipe
-export const unlikeRecipe = async (recipeId) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/unlike`);
-        return response.data;
-    } catch (error) {
-        console.error("Error unliking recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Save a recipe
-export const saveRecipe = async (recipeId) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/save`);
-        return response.data;
-    } catch (error) {
-        console.error("Error saving recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Remove a saved recipe
-export const removeSavedRecipe = async (recipeId) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/remove-saved`);
-        return response.data;
-    } catch (error) {
-        console.error("Error removing saved recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-/* ========================
-    🛠️ RECIPE DETAILS REQUESTS
-======================== */
-// Fetch a single recipe by ID
-export const fetchRecipeById = async (recipeId) => {
-    try {
-        const response = await API.get(`/recipes/${recipeId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipe:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Add a review to a recipe
-export const addReview = async (recipeId, reviewData) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/review`, reviewData);
-        return response.data;
-    } catch (error) {
-        console.error("Error adding review:", error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Delete a recipe
 export const deleteRecipe = async (recipeId) => {
     try {
         const response = await API.delete(`/recipes/${recipeId}`);
         return response.data;
     } catch (error) {
-        console.error("Error deleting recipe:", error.response?.data || error.message);
+        console.error("Error deleting recipe:", error);
         throw error;
     }
 };
 
+export const getRecipeById = async (recipeId) => {
+    try {
+        const response = await API.get(`/recipes/${recipeId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipe:", error);
+        throw error;
+    }
+};
+
+// src/api/axiosInstance.js (excerpt)
+export const likeRecipe = async (recipeId) => {
+    try {
+        const response = await API.post("/users/like", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error liking recipe:", error);
+        throw error;
+    }
+};
+
+export const unlikeRecipe = async (recipeId) => {
+    try {
+        const response = await API.post("/users/unlike", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error unliking recipe:", error);
+        throw error;
+    }
+};
+
+export const saveRecipe = async (recipeId) => {
+    try {
+        const response = await API.post("/users/save", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error saving recipe:", error);
+        throw error;
+    }
+};
+
+export const removeSavedRecipe = async (recipeId) => {
+    try {
+        const response = await API.post("/users/unsave", { recipeId });
+        return response.data;
+    } catch (error) {
+        console.error("Error removing saved recipe:", error);
+        throw error;
+    }
+};
+
+export const saveDraft = async (recipeData) => {
+    try {
+        const response = await API.post("/recipes/draft", recipeData);
+        return response.data;
+    } catch (error) {
+        console.error("Error saving draft:", error);
+        throw error;
+    }
+};
+
+export const shareRecipe = async (recipeId) => {
+    try {
+        const response = await API.post(`/recipes/${recipeId}/share`);
+        return response.data;
+    } catch (error) {
+        console.error("Error sharing recipe:", error);
+        throw error;
+    }
+};
+export const fetchCurrentUser = async () => {
+    try {
+        const response = await API.get("/users/me");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching current user:", error);
+        throw error;
+    }
+};
+// Add to src/api/axiosInstance.js
+// src/api/axiosInstance.js (excerpt)
+export const createRecipe = async (recipeData) => {
+    try {
+        const response = await API.post("/recipes", recipeData);
+        return response.data;
+    } catch (error) {
+        console.error("Error creating recipe:", error);
+        throw error;
+    }
+};
+
+export const editRecipe = async (recipeId, recipeData) => {
+    try {
+        const response = await API.put(`/recipes/${recipeId}`, recipeData);
+        return response.data;
+    } catch (error) {
+        console.error("Error editing recipe:", error);
+        throw error;
+    }
+};
+
+export const fetchRecipeById = async (recipeId) => {
+    try {
+        const response = await API.get(`/recipes/${recipeId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipe:", error);
+        throw error;
+    }
+};
+export const unfollowUserByUsername = async (username) => {
+    try {
+        const response = await API.post(`/users/unfollow/username/${username}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
+        throw error;
+    }
+};
+// src/api/axiosInstance.js
+export const fetchUserProfile = async () => {
+    try {
+        const response = await API.get("/users/profile");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
+        throw error;
+    }
+};
+// src/api/axiosInstance.js
+export const fetchRecipes = async () => {
+    try {
+        const response = await API.get("/recipes");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipes:", error);
+        throw error;
+    }
+};
+export const fetchTrendingRecipes = async () => {
+    try {
+        const response = await API.get("/recipes");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipes:", error);
+        throw error;
+    }
+};
+export const fetchRecentRecipes = async () => {
+    try {
+        const response = await API.get("/recipes");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipes:", error);
+        throw error;
+    }
+};
 export default API;

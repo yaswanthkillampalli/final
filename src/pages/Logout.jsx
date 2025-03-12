@@ -1,11 +1,14 @@
 import { useEffect } from "react";
-import { logoutUser } from "../api/axiosInstance";
-import "../styles.css";
+import { useNavigate } from "react-router-dom";
 
 export default function Logout() {
+    const navigate = useNavigate();
+
     useEffect(() => {
-        logoutUser();
-    }, []);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("userId");
+        navigate("/login");
+    }, [navigate]);
 
     return (
         <div className="logout-container">

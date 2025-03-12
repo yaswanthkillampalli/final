@@ -16,11 +16,15 @@ export default function Register() {
         e.preventDefault();
         try {
             await registerUser(formData);
-            navigate("/login"); // Redirect to login page after successful registration
+            setMessage("Registration successful! Redirecting to login...");
+            setTimeout(() => navigate("/login"), 2000); // 2-second delay
         } catch (error) {
             setMessage(error.response?.data?.message || "Registration failed. Please try again.");
         }
     };
+    
+    // In the return, update the message display:
+    {message && <p className={message.includes("successful") ? "success-message" : "error-message"}>{message}</p>}
 
     return (
         <div className="auth-page">

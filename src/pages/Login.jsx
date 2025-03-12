@@ -7,7 +7,7 @@ export default function Login() {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ email: "", password: "" });
     const [message, setMessage] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);  // ✅ Declare showPassword
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -16,8 +16,10 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await loginUser(formData);
-            navigate("/home"); // Redirect to home page after successful login
+            const response = await loginUser(formData);
+            sessionStorage.setItem("token", response.token);
+            sessionStorage.setItem("userId", response.userId);
+            navigate("/home");
         } catch (error) {
             setMessage(error.response?.data?.message || "Login failed. Please try again.");
         }
@@ -40,7 +42,7 @@ export default function Login() {
                     </div>
                     <div className="form-group password-container">
                         <input
-                            type={showPassword ? "text" : "password"}
+                            type={showPassword ? "text" : "password"}  // ✅ Toggle password visibility
                             name="password"
                             placeholder="Password"
                             value={formData.password}

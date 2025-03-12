@@ -1,132 +1,93 @@
 const Recipe = require("../models/Recipe");
 
-exports.getRecipeById = async (req, res) => {
-    try {
-        const recipe = await Recipe.findById(req.params.id).populate("author", "username profileImage");
-        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
-        res.json(recipe);
-    } catch (error) {
-        console.error("Error fetching recipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
+// Create a New Recipe
 exports.createRecipe = async (req, res) => {
     try {
-        const { title, description, ingredients, instructions, cookingTime, recipeType, image, author } = req.body;
+        const { title, description, ingredients, instructions, cookingTime, recipeType, image } = req.body;
+        if (!req.user) return res.status(401).json({ message: "Please log in" });
 
-        if (!author) {
-            return res.status(400).json({ message: "Author is required" });
+        // Handle instructions: array or string
+        let parsedInstructions = instructions;
+        if (!Array.isArray(instructions)) {
+            parsedInstructions = typeof instructions === "string" ? [instructions] : [];
         }
 
         const newRecipe = new Recipe({
             title,
             description,
             ingredients,
-            instructions,
+            instructions: parsedInstructions,
             cookingTime,
             recipeType,
             image,
-            author, // Ensure author ID is saved
+            author: req.user.id,
         });
 
         await newRecipe.save();
-        res.status(201).json({ message: "Recipe created successfully", recipe: newRecipe });
+        res.status(201).json({ message: "Recipe created", recipe: newRecipe });
     } catch (error) {
         console.error("Error creating recipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
+// Get All Recipes (with basic pagination)
 exports.getRecipes = async (req, res) => {
     try {
-        const recipes = await Recipe.find();
-        res.json(recipes);
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const recipes = await Recipe.find()
+            .populate("author", "username profileImage")
+            .skip(skip)
+            .limit(limit);
+        res.status(200).json(recipes);
     } catch (error) {
         console.error("Error fetching recipes:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
-exports.addRecipe = async (req, res) => {
-    try {
-        const newRecipe = new Recipe(req.body);
-        await newRecipe.save();
-        res.status(201).json(newRecipe);
-    } catch (error) {
-        console.error("Error adding recipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
+// Search Recipes
 exports.searchRecipes = async (req, res) => {
     try {
         const { query, recipeType, sortBy, page = 1, limit = 10 } = req.query;
         let filter = {};
 
-        // Search by title or ingredients
         if (query) {
             filter.$or = [
                 { title: { $regex: query, $options: "i" } },
-                { ingredients: { $regex: query, $options: "i" } }
+                { ingredients: { $regex: query, $options: "i" } },
             ];
         }
 
-        // Filter by recipe type (Veg/Non-Veg)
-        if (recipeType) {
-            if (!["Veg", "Non-Veg"].includes(recipeType)) {
-                return res.status(400).json({ message: "Invalid recipe type. Must be 'Veg' or 'Non-Veg'." });
-            }
+        if (recipeType && ["Veg", "Non-Veg"].includes(recipeType)) {
             filter.recipeType = recipeType;
         }
 
         let recipesQuery = Recipe.find(filter);
+        if (sortBy === "trending") recipesQuery = recipesQuery.sort({ likes: -1 });
+        else if (sortBy === "recent") recipesQuery = recipesQuery.sort({ createdAt: -1 });
 
-        // Sorting Logic
-        if (sortBy === "trending") {
-            recipesQuery = recipesQuery.sort({ likes: -1 }); // Most liked recipes
-        } else if (sortBy === "recent") {
-            recipesQuery = recipesQuery.sort({ createdAt: -1 }); // Newest recipes first
-        }
-
-        // Pagination Logic
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        recipesQuery = recipesQuery.skip(skip).limit(parseInt(limit));
-
-        const recipes = await recipesQuery;
+        const recipes = await recipesQuery.skip(skip).limit(parseInt(limit));
         res.json(recipes);
     } catch (error) {
-        console.error("Error in searchRecipes:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error searching recipes:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
-
-
-
-// Edit Recipe (Only by Owner)
-exports.editRecipe = async (req, res) => {
+// backend/controllers/recipeController.js
+exports.fetchRecipes = async (req, res) => {
     try {
-        const { recipeId } = req.params;
-        const { title, image, ingredients, steps } = req.body;
-
-        const recipe = await Recipe.findById(recipeId);
-        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
-
-        // Check if the user is the owner of the recipe
-        if (recipe.author.toString() !== req.user.id) {
-            return res.status(403).json({ message: "You can only edit your own recipes" });
-        }
-
-        // Update recipe fields
-        recipe.title = title || recipe.title;
-        recipe.image = image || recipe.image;
-        recipe.ingredients = ingredients || recipe.ingredients;
-        recipe.steps = steps || recipe.steps;
-        await recipe.save();
-
-        res.json({ message: "Recipe updated successfully", recipe });
+        const recipes = await Recipe.find({ status: "Published" })
+            .populate("author", "username profileImage")
+            .sort({ createdAt: -1 });
+        res.status(200).json(recipes);
     } catch (error) {
-        console.error("Error in editRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching recipes:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
 
@@ -134,55 +95,198 @@ exports.editRecipe = async (req, res) => {
 exports.deleteRecipe = async (req, res) => {
     try {
         const { recipeId } = req.params;
-
         const recipe = await Recipe.findById(recipeId);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
-        // Check if the user is the owner
         if (recipe.author.toString() !== req.user.id) {
-            return res.status(403).json({ message: "You can only delete your own recipes" });
+            return res.status(403).json({ message: "Only the owner can delete this" });
         }
 
         await recipe.deleteOne();
-        res.json({ message: "Recipe deleted successfully" });
+        res.json({ message: "Recipe deleted" });
     } catch (error) {
-        console.error("Error in deleteRecipe:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error deleting recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
-exports.addReview = async (req, res) => {
+
+// Like a Recipe (Toggle Like/Unlike)
+exports.likeRecipe = async (req, res) => {
     try {
         const { recipeId } = req.params;
-        const { rating, comment } = req.body;
-
-        if (rating < 1 || rating > 5) {
-            return res.status(400).json({ message: "Rating must be between 1 and 5 stars" });
-        }
+        const userId = req.user.id;
 
         const recipe = await Recipe.findById(recipeId);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
-        const newReview = { user: req.user.id, rating, comment };
-        recipe.reviews.push(newReview);
+        const alreadyLiked = recipe.likes.includes(userId);
+        if (alreadyLiked) {
+            recipe.likes = recipe.likes.filter((id) => id.toString() !== userId);
+            await recipe.save();
+            return res.status(200).json({ message: "Like removed", likes: recipe.likes.length });
+        }
 
-        // Calculate new average rating
-        const totalRatings = recipe.reviews.reduce((sum, r) => sum + r.rating, 0);
-        recipe.averageRating = totalRatings / recipe.reviews.length;
-
+        recipe.likes.push(userId);
         await recipe.save();
-        res.json({ message: "Review added successfully", recipe });
+        res.status(200).json({ message: "Recipe liked", likes: recipe.likes.length });
     } catch (error) {
-        console.error("Error in addReview:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error liking recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
+
+// Save a Recipe
+exports.saveRecipe = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const userId = req.user.id;
+
+        const recipe = await Recipe.findById(recipeId);
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+
+        if (recipe.savedBy.includes(userId)) {
+            return res.status(400).json({ message: "Already saved" });
+        }
+
+        recipe.savedBy.push(userId);
+        await recipe.save();
+        res.status(200).json({ message: "Recipe saved", savedBy: recipe.savedBy.length });
+    } catch (error) {
+        console.error("Error saving recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+// Unsave a Recipe
+exports.unsaveRecipe = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const userId = req.user.id;
+
+        const recipe = await Recipe.findById(recipeId);
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+
+        recipe.savedBy = recipe.savedBy.filter((id) => id.toString() !== userId);
+        await recipe.save();
+        res.status(200).json({ message: "Recipe unsaved", savedBy: recipe.savedBy.length });
+    } catch (error) {
+        console.error("Error unsaving recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
 exports.saveDraft = async (req, res) => {
     try {
-        const newRecipe = new Recipe({ ...req.body, author: req.user.id, status: "Draft" });
-        await newRecipe.save();
-        res.json({ message: "Recipe saved as draft", newRecipe });
+        const { title, description, ingredients, instructions, cookingTime, recipeType, image } = req.body;
+        const author = req.user.id;
+
+        const newDraft = new Recipe({
+            title,
+            description,
+            ingredients,
+            instructions,
+            cookingTime,
+            recipeType,
+            image,
+            author,
+            status: "Draft",
+        });
+
+        await newDraft.save();
+        res.status(201).json({ message: "Draft saved", recipe: newDraft });
     } catch (error) {
-        console.error("Error in saveDraft:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error saving draft:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.addRecipe = async (req, res) => {
+    try {
+        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image } = req.body;
+        const author = req.user.id;
+        const recipe = new Recipe({
+            title,
+            description,
+            ingredients,
+            instructions,
+            cookingTime,
+            prepTime,
+            servings,
+            difficulty,
+            recipeType,
+            image,
+            author,
+            status: "Published",
+        });
+        await recipe.save();
+        res.status(201).json({ message: "Recipe added", recipeId: recipe._id });
+    } catch (error) {
+        console.error("Error adding recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.editRecipe = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image } = req.body;
+        const recipe = await Recipe.findOne({ _id: recipeId, author: req.user.id });
+        if (!recipe) return res.status(404).json({ message: "Recipe not found or not authorized" });
+
+        recipe.title = title;
+        recipe.description = description;
+        recipe.ingredients = ingredients;
+        recipe.instructions = instructions;
+        recipe.cookingTime = cookingTime;
+        recipe.prepTime = prepTime;
+        recipe.servings = servings;
+        recipe.difficulty = difficulty;
+        recipe.recipeType = recipeType;
+        recipe.image = image;
+
+        await recipe.save();
+        res.status(200).json({ message: "Recipe updated", recipeId: recipe._id });
+    } catch (error) {
+        console.error("Error updating recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+exports.getRecipeById = async (req, res) => {
+    try {
+        const recipe = await Recipe.findById(req.params.id).populate("author", "username");
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+        res.status(200).json(recipe);
+    } catch (error) {
+        console.error("Error fetching recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+// Share Recipe
+exports.shareRecipe = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const recipe = await Recipe.findById(recipeId);
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+
+        const shareLink = `${process.env.FRONTEND_URL}/recipe/${recipeId}`;
+        res.json({ message: "Share link ready", shareLink });
+    } catch (error) {
+        console.error("Error sharing recipe:", error);
+        res.status(500).json({ message: "Something went wrong" });
+    }
+};
+// Add to backend/controllers/recipeController.js
+exports.getTrendingRecipes = async (req, res) => {
+    try {
+        const trendingRecipes = await Recipe.find({ status: "Published" })
+            .sort({ "likes.length": -1 })
+            .limit(10)
+            .populate("author", "username profileImage");
+        res.status(200).json(trendingRecipes);
+    } catch (error) {
+        console.error("Error fetching trending recipes:", error);
+        res.status(500).json({ message: "Something went wrong" });
     }
 };
