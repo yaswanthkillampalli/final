@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { createRecipe, fetchRecipeById, editRecipe } from "../api/axiosInstance"; // Updated import
+import { createRecipe, fetchRecipeById, editRecipe } from "../api/axiosInstance";
 import "../styles.css";
 
 export default function NewPost() {
@@ -20,6 +20,7 @@ export default function NewPost() {
         difficulty: "Medium",
         recipeType: "",
         image: "",
+        status: "Published", // Default status for new recipes
     });
     const [message, setMessage] = useState("");
     const isLoggedIn = !!sessionStorage.getItem("token");
@@ -32,46 +33,52 @@ export default function NewPost() {
                     setRecipe({
                         title: data.title || "",
                         description: data.description || "",
-                        ingredients: data.ingredients.map(ing => ing.name || "") || [""],
-                        instructions: data.instructions || [""],
+                        ingredients: data.ingredients.length > 0 
+                            ? data.ingredients.map(ing => ing.name || "") 
+                            : [""],
+                        instructions: data.instructions.length > 0 
+                            ? data.instructions 
+                            : [""],
                         cookingTime: data.cookingTime || "",
                         prepTime: data.prepTime || "",
                         servings: data.servings || "",
                         difficulty: data.difficulty || "Medium",
                         recipeType: data.recipeType || "",
                         image: data.image || "",
+                        status: data.status || "Published", // Preserve existing status
                     });
                 } catch (error) {
                     console.error("Error fetching recipe:", error);
-                    setMessage("Failed to load recipe.");
+                    setMessage("Failed to load recipe. Please try again.");
                 }
             };
             loadRecipe();
         }
-    }, [recipeId]);
+    }, [recipeId, isEditing]);
 
     const handleChange = (e) => {
-        setRecipe({ ...recipe, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setRecipe((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleIngredientChange = (index, value) => {
         const updatedIngredients = [...recipe.ingredients];
         updatedIngredients[index] = value;
-        setRecipe({ ...recipe, ingredients: updatedIngredients });
+        setRecipe((prev) => ({ ...prev, ingredients: updatedIngredients }));
     };
 
     const addIngredient = () => {
-        setRecipe({ ...recipe, ingredients: [...recipe.ingredients, ""] });
+        setRecipe((prev) => ({ ...prev, ingredients: [...prev.ingredients, ""] }));
     };
 
     const handleInstructionChange = (index, value) => {
         const updatedInstructions = [...recipe.instructions];
         updatedInstructions[index] = value;
-        setRecipe({ ...recipe, instructions: updatedInstructions });
+        setRecipe((prev) => ({ ...prev, instructions: updatedInstructions }));
     };
 
     const addInstruction = () => {
-        setRecipe({ ...recipe, instructions: [...recipe.instructions, ""] });
+        setRecipe((prev) => ({ ...prev, instructions: [...prev.instructions, ""] }));
     };
 
     const handleSubmit = async (e) => {
@@ -88,8 +95,8 @@ export default function NewPost() {
         const recipeData = {
             title: recipe.title.trim(),
             description: recipe.description.trim(),
-            ingredients: recipe.ingredients.filter(ing => ing.trim() !== "").map(ing => ({ name: ing })),
-            instructions: recipe.instructions.filter(step => step.trim() !== ""),
+            ingredients: recipe.ingredients.filter((ing) => ing.trim() !== "").map((ing) => ({ name: ing })),
+            instructions: recipe.instructions.filter((step) => step.trim() !== ""),
             cookingTime: recipe.cookingTime,
             prepTime: recipe.prepTime,
             servings: recipe.servings,
@@ -97,24 +104,29 @@ export default function NewPost() {
             recipeType: recipe.recipeType,
             image: recipe.image.trim(),
             author: userId,
+            status: recipe.status, // Use the form's status value
         };
 
         console.log("✅ Final Recipe Data:", recipeData);
 
         try {
             if (isEditing) {
-                const response = await editRecipe(recipeId, recipeData); // Changed to editRecipe
+                const response = await editRecipe(recipeId, recipeData);
                 console.log("✅ Recipe updated successfully:", response);
                 setMessage("Recipe updated successfully!");
             } else {
                 const response = await createRecipe(recipeData);
                 console.log("✅ Recipe created successfully:", response);
-                setMessage("Recipe added successfully!");
+                // Optionally publish the recipe (if not already handled by createRecipe)
+                await API.post("/users/publish", { recipeId: response.data._id });
+                setMessage("Recipe added and published successfully!");
             }
-            setTimeout(() => navigate("/home"), 2000);
+            setTimeout(() => navigate("/published"), 2000); // Redirect to Published page
         } catch (error) {
             console.error("❌ Error:", error.response?.data || error.message);
-            setMessage(error.response?.data?.message || `Failed to ${isEditing ? "update" : "add"} recipe.`);
+            setMessage(
+                error.response?.data?.message || `Failed to ${isEditing ? "update" : "add"} recipe.`
+            );
         }
     };
 
@@ -155,7 +167,7 @@ export default function NewPost() {
                                 value={ingredient}
                                 onChange={(e) => handleIngredientChange(index, e.target.value)}
                                 placeholder={`Ingredient ${index + 1}`}
-                                required
+                                required={index === 0} // Only the first ingredient is required
                             />
                         ))}
                         <button type="button" className="add-button" onClick={addIngredient}>
@@ -171,7 +183,7 @@ export default function NewPost() {
                                 value={step}
                                 onChange={(e) => handleInstructionChange(index, e.target.value)}
                                 placeholder={`Step ${index + 1}`}
-                                required
+                                required={index === 0} // Only the first instruction is required
                             />
                         ))}
                         <button type="button" className="add-button" onClick={addInstruction}>
@@ -252,6 +264,13 @@ export default function NewPost() {
                             onChange={handleChange}
                             required
                         />
+                    </div>
+                    <div className="form-group">
+                        <label>Status</label>
+                        <select name="status" value={recipe.status} onChange={handleChange}>
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                        </select>
                     </div>
                     <button type="submit" className="submit-button">
                         {isEditing ? "Update Recipe" : "Publish"}

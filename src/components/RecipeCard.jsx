@@ -1,32 +1,45 @@
 // src/components/RecipeCard.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { likeRecipe, unlikeRecipe, saveRecipe, removeSavedRecipe, shareRecipe, followUserByUsername, fetchCurrentUser } from "../api/axiosInstance";
+import { likeRecipe, unlikeRecipe, saveRecipe, removeSavedRecipe, shareRecipe, followUserByUsername, unfollowUserByUsername, fetchCurrentUser, fetchRecipeById } from "../api/axiosInstance";
 import "../styles.css";
 
-export default function RecipeCard({ recipe }) {
+export default function RecipeCard({ recipe, onUpdate }) {
     const navigate = useNavigate();
     const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(recipe.likes?.length || 0);
     const [isSaved, setIsSaved] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const isLoggedIn = !!sessionStorage.getItem("token");
     const currentUserId = sessionStorage.getItem("userId");
 
     useEffect(() => {
-        if (currentUserId) {
-            setIsLiked(recipe.likedBy?.some(id => id.toString() === currentUserId));
-            setIsSaved(recipe.savedBy?.some(id => id.toString() === currentUserId));
-            const checkFollowing = async () => {
+        const initializeStates = async () => {
+            if (currentUserId) {
                 try {
+                    // Fetch the latest recipe data to ensure accuracy
+                    const updatedRecipe = await fetchRecipeById(recipe._id);
+                    setIsLiked(updatedRecipe.likedBy?.some(id => id.toString() === currentUserId) || false);
+                    setIsSaved(updatedRecipe.savedBy?.some(id => id.toString() === currentUserId) || false);
+                    setLikeCount(updatedRecipe.likes?.length || 0);
+
+                    // Check if the current user is following the recipe author
                     const currentUser = await fetchCurrentUser();
-                    setIsFollowing(currentUser.following.some(user => user._id.toString() === recipe.author?._id?.toString()));
+                    setIsFollowing(
+                        currentUser.following.some(user => user._id.toString() === recipe.author?._id?.toString())
+                    );
                 } catch (error) {
-                    console.error("Error checking following status:", error);
+                    console.error("Error initializing states:", error);
+                    // Fallback to props if fetch fails
+                    setIsLiked(recipe.likedBy?.some(id => id.toString() === currentUserId) || false);
+                    setIsSaved(recipe.savedBy?.some(id => id.toString() === currentUserId) || false);
+                    setLikeCount(recipe.likes?.length || 0);
                 }
-            };
-            checkFollowing();
-        }
-    }, [recipe.likedBy, recipe.savedBy, recipe.author?._id, currentUserId]);
+            }
+        };
+
+        initializeStates();
+    }, [recipe._id, currentUserId]); // Re-run if recipe ID or user ID changes
 
     const handleLikeToggle = async (e) => {
         e.preventDefault();
@@ -35,10 +48,17 @@ export default function RecipeCard({ recipe }) {
             if (isLiked) {
                 await unlikeRecipe(recipe._id);
                 setIsLiked(false);
+                setLikeCount(prev => prev - 1);
             } else {
                 await likeRecipe(recipe._id);
                 setIsLiked(true);
+                setLikeCount(prev => prev + 1);
             }
+            // Refetch the recipe to ensure state is in sync with the server
+            const updatedRecipe = await fetchRecipeById(recipe._id);
+            setIsLiked(updatedRecipe.likedBy?.some(id => id.toString() === currentUserId) || false);
+            setLikeCount(updatedRecipe.likes?.length || 0);
+            if (onUpdate) onUpdate(updatedRecipe); // Notify parent component of update
         } catch (error) {
             console.error("❌ Error toggling like:", error);
         }
@@ -55,24 +75,41 @@ export default function RecipeCard({ recipe }) {
                 await saveRecipe(recipe._id);
                 setIsSaved(true);
             }
+            // Refetch the recipe to ensure state is in sync with the server
+            const updatedRecipe = await fetchRecipeById(recipe._id);
+            setIsSaved(updatedRecipe.savedBy?.some(id => id.toString() === currentUserId) || false);
+            if (onUpdate) onUpdate(updatedRecipe);
         } catch (error) {
             console.error("❌ Error toggling save:", error);
         }
     };
 
-    const handleShare = (e) => {
+    const handleShare = async (e) => {
         e.preventDefault();
-        shareRecipe(recipe._id);
+        try {
+            const response = await shareRecipe(recipe._id);
+            if (response.shareLink) {
+                navigator.clipboard.writeText(response.shareLink);
+                alert("Share link copied to clipboard!");
+            }
+        } catch (error) {
+            console.error("❌ Error sharing recipe:", error);
+        }
     };
 
-    const handleFollow = async (e) => {
+    const handleFollowToggle = async (e) => {
         e.preventDefault();
         if (!isLoggedIn) return alert("Please log in to follow users.");
         try {
-            await followUserByUsername(recipe.author.username);
-            setIsFollowing(true);
+            if (isFollowing) {
+                await unfollowUserByUsername(recipe.author.username);
+                setIsFollowing(false);
+            } else {
+                await followUserByUsername(recipe.author.username);
+                setIsFollowing(true);
+            }
         } catch (error) {
-            console.error("❌ Error following user:", error);
+            console.error("❌ Error toggling follow:", error);
         }
     };
 
@@ -99,9 +136,9 @@ export default function RecipeCard({ recipe }) {
                 {isLoggedIn && currentUserId !== recipe.author?._id?.toString() && (
                     <button
                         className={`follow-btn ${isFollowing ? "following" : ""}`}
-                        onClick={handleFollow}
+                        onClick={handleFollowToggle}
                     >
-                        {isFollowing ? "Following" : "Follow"}
+                        {isFollowing ? "Unfollow" : "Follow"}
                     </button>
                 )}
             </div>
@@ -117,6 +154,9 @@ export default function RecipeCard({ recipe }) {
                     <span><i className="fa-solid fa-user-group"></i> {recipe.servings || "N/A"} servings</span>
                     <span><i className="fa-solid fa-gauge"></i> {recipe.difficulty || "N/A"}</span>
                 </div>
+                <div className="recipe-stats">
+                    <span><i className="fa-solid fa-heart"></i> {likeCount}</span>
+                </div>
                 <div className={`recipe-actions ${!isLoggedIn ? "logged-out" : ""}`}>
                     {isLoggedIn ? (
                         <>
@@ -125,7 +165,7 @@ export default function RecipeCard({ recipe }) {
                                 onClick={handleLikeToggle}
                                 title={isLiked ? "Unlike" : "Like"}
                             >
-                                <i className="fa-solid fa-heart"></i>
+                                <i className={`fa-heart ${isLiked ? "fas liked" : "far"}`}></i>
                             </button>
                             <button className="share-btn" onClick={handleShare} title="Share">
                                 <i className="fa-solid fa-paper-plane"></i>
@@ -135,7 +175,7 @@ export default function RecipeCard({ recipe }) {
                                 onClick={handleSaveToggle}
                                 title={isSaved ? "Unsave" : "Save"}
                             >
-                                <i className="fa-solid fa-bookmark"></i>
+                                <i className={`fa-bookmark ${isSaved ? "fas saved" : "far"}`}></i>
                             </button>
                         </>
                     ) : (
@@ -145,14 +185,6 @@ export default function RecipeCard({ recipe }) {
                     )}
                 </div>
             </div>
-
-            <Link
-                to={`/recipe/${recipe._id}`}
-                className="btn btn-sm btn-outline-success mt-2 w-100"
-                onClick={handleViewRecipe}
-            >
-                View Recipe
-            </Link>
             {isLoggedIn && currentUserId === recipe.author?._id?.toString() && (
                 <Link
                     to={`/edit/${recipe._id}`}
@@ -161,6 +193,14 @@ export default function RecipeCard({ recipe }) {
                     Edit Recipe
                 </Link>
             )}
+            <Link
+                to={`/recipe/${recipe._id}`}
+                className="btn btn-sm btn-outline-success mt-2 w-100"
+                onClick={handleViewRecipe}
+            >
+                View Recipe
+            </Link>
+            
         </div>
     );
 }

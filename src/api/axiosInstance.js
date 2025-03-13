@@ -1,3 +1,4 @@
+// src/api/axiosInstance.js
 import axios from "axios";
 
 const API = axios.create({
@@ -5,13 +6,16 @@ const API = axios.create({
     headers: { "Content-Type": "application/json" },
 });
 
-API.interceptors.request.use((config) => {
-    const token = sessionStorage.getItem("token");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-}, (error) => Promise.reject(error));
+API.interceptors.request.use(
+    (config) => {
+        const token = sessionStorage.getItem("token");
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
 /* ========================
     🛠️ AUTHENTICATION REQUESTS
@@ -25,8 +29,6 @@ export const registerUser = async (userData) => {
         throw error;
     }
 };
-
-
 
 export const loginUser = async (credentials) => {
     try {
@@ -44,23 +46,32 @@ export const loginUser = async (credentials) => {
     }
 };
 
-
-
 export const logoutUser = () => {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("userId");
+    delete API.defaults.headers.common["Authorization"];
     window.location.href = "/login";
 };
 
 /* ========================
     👤 USER REQUESTS
 ======================== */
-export const getUserProfile = async () => {
+export const fetchCurrentUser = async () => {
     try {
         const response = await API.get("/users/profile");
         return response.data;
     } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error fetching current user:", error);
+        throw error;
+    }
+};
+
+export const fetchUserProfile = async () => {
+    try {
+        const response = await API.get("/users/profile");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
         throw error;
     }
 };
@@ -81,6 +92,16 @@ export const followUserByUsername = async (username) => {
         return response.data;
     } catch (error) {
         console.error("Error following user:", error);
+        throw error;
+    }
+};
+
+export const unfollowUserByUsername = async (username) => {
+    try {
+        const response = await API.post(`/users/unfollow/username/${username}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
         throw error;
     }
 };
@@ -110,7 +131,7 @@ export const getUserRecipes = async (userId) => {
         const response = await API.get(`/users/${userId}/recipes`);
         return response.data;
     } catch (error) {
-        console.error("Error fetching recipes:", error);
+        console.error("Error fetching user recipes:", error);
         throw error;
     }
 };
@@ -158,7 +179,7 @@ export const removeSavedRecipeUser = async (recipeId) => {
 /* ========================
     🍳 RECIPE REQUESTS
 ======================== */
-export const getRecipes = async () => {
+export const fetchRecipes = async () => {
     try {
         const response = await API.get("/recipes");
         return response.data;
@@ -168,28 +189,55 @@ export const getRecipes = async () => {
     }
 };
 
-export const addRecipe = async (recipeData) => {
+export const fetchTrendingRecipes = async () => {
+    try {
+        const response = await API.get("/recipes/trending");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching trending recipes:", error);
+        throw error;
+    }
+};
+
+export const fetchRecentRecipes = async () => {
+    try {
+        const response = await API.get("/recipes/recent");
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recent recipes:", error);
+        throw error;
+    }
+};
+
+export const fetchRecipeById = async (recipeId) => {
+    try {
+        const response = await API.get(`/recipes/${recipeId}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching recipe by ID:", error);
+        throw error;
+    }
+};
+
+export const createRecipe = async (recipeData) => {
     try {
         const response = await API.post("/recipes", recipeData);
         return response.data;
     } catch (error) {
-        console.error("Error adding recipe:", error);
+        console.error("Error creating recipe:", error);
         throw error;
     }
 };
 
-export const searchRecipes = async (query, recipeType, sortBy, page = 1, limit = 10) => {
+export const editRecipe = async (recipeId, recipeData) => {
     try {
-        const response = await API.get("/recipes/search", {
-            params: { query, recipeType, sortBy, page, limit },
-        });
+        const response = await API.put(`/recipes/${recipeId}`, recipeData);
         return response.data;
     } catch (error) {
-        console.error("Error searching recipes:", error);
+        console.error("Error editing recipe:", error);
         throw error;
     }
 };
-
 
 export const deleteRecipe = async (recipeId) => {
     try {
@@ -201,17 +249,6 @@ export const deleteRecipe = async (recipeId) => {
     }
 };
 
-export const getRecipeById = async (recipeId) => {
-    try {
-        const response = await API.get(`/recipes/${recipeId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipe:", error);
-        throw error;
-    }
-};
-
-// src/api/axiosInstance.js (excerpt)
 export const likeRecipe = async (recipeId) => {
     try {
         const response = await API.post("/users/like", { recipeId });
@@ -271,91 +308,15 @@ export const shareRecipe = async (recipeId) => {
         throw error;
     }
 };
-export const fetchCurrentUser = async () => {
+
+export const searchRecipes = async (query) => {
     try {
-        const response = await API.get("/users/me");
+        const response = await API.get(`/recipes/search?query=${encodeURIComponent(query)}`);
         return response.data;
     } catch (error) {
-        console.error("Error fetching current user:", error);
-        throw error;
-    }
-};
-// Add to src/api/axiosInstance.js
-// src/api/axiosInstance.js (excerpt)
-export const createRecipe = async (recipeData) => {
-    try {
-        const response = await API.post("/recipes", recipeData);
-        return response.data;
-    } catch (error) {
-        console.error("Error creating recipe:", error);
+        console.error("Error searching recipes:", error);
         throw error;
     }
 };
 
-export const editRecipe = async (recipeId, recipeData) => {
-    try {
-        const response = await API.put(`/recipes/${recipeId}`, recipeData);
-        return response.data;
-    } catch (error) {
-        console.error("Error editing recipe:", error);
-        throw error;
-    }
-};
-
-export const fetchRecipeById = async (recipeId) => {
-    try {
-        const response = await API.get(`/recipes/${recipeId}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipe:", error);
-        throw error;
-    }
-};
-export const unfollowUserByUsername = async (username) => {
-    try {
-        const response = await API.post(`/users/unfollow/username/${username}`);
-        return response.data;
-    } catch (error) {
-        console.error("Error unfollowing user:", error);
-        throw error;
-    }
-};
-// src/api/axiosInstance.js
-export const fetchUserProfile = async () => {
-    try {
-        const response = await API.get("/users/profile");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching user profile:", error);
-        throw error;
-    }
-};
-// src/api/axiosInstance.js
-export const fetchRecipes = async () => {
-    try {
-        const response = await API.get("/recipes");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipes:", error);
-        throw error;
-    }
-};
-export const fetchTrendingRecipes = async () => {
-    try {
-        const response = await API.get("/recipes");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipes:", error);
-        throw error;
-    }
-};
-export const fetchRecentRecipes = async () => {
-    try {
-        const response = await API.get("/recipes");
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching recipes:", error);
-        throw error;
-    }
-};
 export default API;

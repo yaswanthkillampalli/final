@@ -49,6 +49,7 @@ export default function App() {
                         <Route path="/published" element={<Published />} />
                         <Route path="/liked" element={<Liked />} />
                         <Route path="/saved" element={<Saved />} />
+                        <Route path="/edit/:recipeId" element={<NewPost />} /> {/* Added edit route */}
                     </>
                 ) : (
                     <>
@@ -57,6 +58,7 @@ export default function App() {
                         <Route path="/published" element={<Navigate to="/login" />} />
                         <Route path="/liked" element={<Navigate to="/login" />} />
                         <Route path="/saved" element={<Navigate to="/login" />} />
+                        <Route path="/edit/:recipeId" element={<Navigate to="/login" />} /> {/* Added edit redirect */}
                     </>
                 )}
 

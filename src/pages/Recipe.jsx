@@ -1,7 +1,16 @@
 // src/pages/Recipe.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchRecipeById, likeRecipe, unlikeRecipe, saveRecipe, removeSavedRecipe, shareRecipe, followUserByUsername } from "../api/axiosInstance";
+import {
+    fetchRecipeById,
+    likeRecipe,
+    unlikeRecipe,
+    saveRecipe,
+    removeSavedRecipe,
+    shareRecipe,
+    followUserByUsername,
+    fetchCurrentUser // Add this import
+} from "../api/axiosInstance";
 import Navbar from "../components/Navbar";
 import "../styles.css";
 
@@ -33,7 +42,7 @@ export default function Recipe() {
                 if (currentUserId) {
                     setIsLiked(data.likedBy?.some(userId => userId.toString() === currentUserId));
                     setIsSaved(data.savedBy?.some(userId => userId.toString() === currentUserId));
-                    const currentUser = await fetchCurrentUser();
+                    const currentUser = await fetchCurrentUser(); // This was undefined without import
                     setIsFollowing(currentUser.following.some(user => user._id.toString() === data.author?._id?.toString()));
                 }
             } catch (err) {

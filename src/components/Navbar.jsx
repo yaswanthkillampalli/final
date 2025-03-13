@@ -36,6 +36,7 @@ export default function Navbar() {
                         <ul className="navbar-nav me-auto">
                             <li className="nav-item"><Link className="nav-link" to="/home">Home</Link></li>
                             <li className="nav-item"><Link className="nav-link" to="/trending">Trending</Link></li>
+                            <li className="nav-item"><Link className="nav-link" to="/recent">Recent</Link></li>
                             <li className="nav-item"><Link className="nav-link" to="/about">About Us</Link></li>
                         </ul>
                     </div>

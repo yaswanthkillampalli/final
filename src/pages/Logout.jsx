@@ -1,5 +1,7 @@
+// src/pages/Logout.jsx
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import "../styles.css";
 
 export default function Logout() {
     const navigate = useNavigate();
@@ -7,13 +9,13 @@ export default function Logout() {
     useEffect(() => {
         sessionStorage.removeItem("token");
         sessionStorage.removeItem("userId");
-        navigate("/login");
+        setTimeout(() => navigate("/login", { replace: true }), 1000); // Brief delay for feedback
     }, [navigate]);
 
     return (
         <div className="logout-container">
             <h2>Logging out...</h2>
-            <p>You will be redirected shortly.</p>
+            <p>You will be redirected to the login page shortly.</p>
         </div>
     );
 }

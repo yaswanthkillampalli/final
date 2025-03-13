@@ -1,12 +1,11 @@
+// backend/controllers/recipeController.js
 const Recipe = require("../models/Recipe");
 
-// Create a New Recipe
 exports.createRecipe = async (req, res) => {
     try {
-        const { title, description, ingredients, instructions, cookingTime, recipeType, image } = req.body;
+        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image, status } = req.body;
         if (!req.user) return res.status(401).json({ message: "Please log in" });
 
-        // Handle instructions: array or string
         let parsedInstructions = instructions;
         if (!Array.isArray(instructions)) {
             parsedInstructions = typeof instructions === "string" ? [instructions] : [];
@@ -18,9 +17,13 @@ exports.createRecipe = async (req, res) => {
             ingredients,
             instructions: parsedInstructions,
             cookingTime,
+            prepTime,
+            servings,
+            difficulty,
             recipeType,
             image,
             author: req.user.id,
+            status: status || "Draft", // Default to Draft if not provided
         });
 
         await newRecipe.save();
@@ -31,14 +34,13 @@ exports.createRecipe = async (req, res) => {
     }
 };
 
-// Get All Recipes (with basic pagination)
 exports.getRecipes = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        const recipes = await Recipe.find()
+        const recipes = await Recipe.find({ status: "Published" })
             .populate("author", "username profileImage")
             .skip(skip)
             .limit(limit);
@@ -49,53 +51,110 @@ exports.getRecipes = async (req, res) => {
     }
 };
 
-// Search Recipes
+exports.fetchTrendingRecipes = async (req, res) => {
+    try {
+        const recipes = await Recipe.find({ status: "Published" })
+            .populate("author", "username profileImage")
+            .sort({ createdAt: -1 }) // Fallback to newest
+            .limit(20);
+
+        const sortedRecipes = recipes.sort((a, b) => {
+            const aLikes = Array.isArray(a.likes) ? a.likes.length : 0;
+            const bLikes = Array.isArray(b.likes) ? b.likes.length : 0;
+            return bLikes - aLikes || b.createdAt - a.createdAt; // Likes desc, then newest
+        });
+
+        res.status(200).json(sortedRecipes);
+    } catch (error) {
+        console.error("Error fetching trending recipes:", error.stack);
+        res.status(500).json({ message: "Failed to fetch trending recipes", error: error.message });
+    }
+};
+
+exports.fetchRecentRecipes = async (req, res) => {
+    try {
+        const recipes = await Recipe.find({ status: "Published" })
+            .populate({
+                path: "author",
+                select: "username profileImage",
+                match: { _id: { $exists: true } }, // Ensure author exists
+            })
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        const validRecipes = recipes.filter(recipe => recipe.author !== null);
+        res.status(200).json(validRecipes);
+    } catch (error) {
+        console.error("Error fetching recent recipes:", error.stack);
+        res.status(500).json({ message: "Failed to fetch recent recipes", error: error.message });
+    }
+};
+
 exports.searchRecipes = async (req, res) => {
     try {
-        const { query, recipeType, sortBy, page = 1, limit = 10 } = req.query;
-        let filter = {};
-
-        if (query) {
-            filter.$or = [
-                { title: { $regex: query, $options: "i" } },
-                { ingredients: { $regex: query, $options: "i" } },
-            ];
-        }
-
-        if (recipeType && ["Veg", "Non-Veg"].includes(recipeType)) {
-            filter.recipeType = recipeType;
-        }
-
-        let recipesQuery = Recipe.find(filter);
-        if (sortBy === "trending") recipesQuery = recipesQuery.sort({ likes: -1 });
-        else if (sortBy === "recent") recipesQuery = recipesQuery.sort({ createdAt: -1 });
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const recipes = await recipesQuery.skip(skip).limit(parseInt(limit));
-        res.json(recipes);
+        const { query } = req.query;
+        const recipes = await Recipe.find({
+            status: "Published",
+            $or: [
+                { title: new RegExp(query, "i") },
+                { description: new RegExp(query, "i") },
+            ],
+        })
+            .populate("author", "username profileImage")
+            .limit(20);
+        res.status(200).json(recipes);
     } catch (error) {
         console.error("Error searching recipes:", error);
         res.status(500).json({ message: "Something went wrong" });
     }
 };
-// backend/controllers/recipeController.js
-exports.fetchRecipes = async (req, res) => {
+
+exports.getRecipeById = async (req, res) => {
     try {
-        const recipes = await Recipe.find({ status: "Published" })
+        const recipe = await Recipe.findById(req.params.id)
             .populate("author", "username profileImage")
-            .sort({ createdAt: -1 });
-        res.status(200).json(recipes);
+            .populate("likes", "username")
+            .populate("likedBy", "username")
+            .populate("savedBy", "username");
+        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
+        res.status(200).json(recipe);
     } catch (error) {
-        console.error("Error fetching recipes:", error);
+        console.error("Error fetching recipe:", error);
+        res.status(500).json({ message: "Something went wrong", error: error.message });
+    }
+};
+
+exports.editRecipe = async (req, res) => {
+    try {
+        const { id } = req.params; // Changed from recipeId to id to match route
+        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image, status } = req.body;
+        const recipe = await Recipe.findOne({ _id: id, author: req.user.id });
+        if (!recipe) return res.status(404).json({ message: "Recipe not found or not authorized" });
+
+        recipe.title = title || recipe.title;
+        recipe.description = description || recipe.description;
+        recipe.ingredients = ingredients || recipe.ingredients;
+        recipe.instructions = instructions || recipe.instructions;
+        recipe.cookingTime = cookingTime || recipe.cookingTime;
+        recipe.prepTime = prepTime || recipe.prepTime;
+        recipe.servings = servings || recipe.servings;
+        recipe.difficulty = difficulty || recipe.difficulty;
+        recipe.recipeType = recipeType || recipe.recipeType;
+        recipe.image = image || recipe.image;
+        recipe.status = status || recipe.status;
+
+        await recipe.save();
+        res.status(200).json({ message: "Recipe updated", recipeId: recipe._id });
+    } catch (error) {
+        console.error("Error updating recipe:", error);
         res.status(500).json({ message: "Something went wrong" });
     }
 };
 
-// Delete Recipe (Only by Owner)
 exports.deleteRecipe = async (req, res) => {
     try {
-        const { recipeId } = req.params;
-        const recipe = await Recipe.findById(recipeId);
+        const { id } = req.params; // Changed from recipeId to id
+        const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
         if (recipe.author.toString() !== req.user.id) {
@@ -103,30 +162,31 @@ exports.deleteRecipe = async (req, res) => {
         }
 
         await recipe.deleteOne();
-        res.json({ message: "Recipe deleted" });
+        res.status(200).json({ message: "Recipe deleted" });
     } catch (error) {
         console.error("Error deleting recipe:", error);
         res.status(500).json({ message: "Something went wrong" });
     }
 };
 
-// Like a Recipe (Toggle Like/Unlike)
 exports.likeRecipe = async (req, res) => {
     try {
-        const { recipeId } = req.params;
+        const { id } = req.params; // Changed from recipeId to id
         const userId = req.user.id;
 
-        const recipe = await Recipe.findById(recipeId);
+        const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
         const alreadyLiked = recipe.likes.includes(userId);
         if (alreadyLiked) {
             recipe.likes = recipe.likes.filter((id) => id.toString() !== userId);
+            recipe.likedBy = recipe.likedBy.filter((id) => id.toString() !== userId);
             await recipe.save();
             return res.status(200).json({ message: "Like removed", likes: recipe.likes.length });
         }
 
         recipe.likes.push(userId);
+        recipe.likedBy.push(userId);
         await recipe.save();
         res.status(200).json({ message: "Recipe liked", likes: recipe.likes.length });
     } catch (error) {
@@ -135,13 +195,12 @@ exports.likeRecipe = async (req, res) => {
     }
 };
 
-// Save a Recipe
 exports.saveRecipe = async (req, res) => {
     try {
-        const { recipeId } = req.params;
+        const { id } = req.params; // Changed from recipeId to id
         const userId = req.user.id;
 
-        const recipe = await Recipe.findById(recipeId);
+        const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
         if (recipe.savedBy.includes(userId)) {
@@ -157,13 +216,12 @@ exports.saveRecipe = async (req, res) => {
     }
 };
 
-// Unsave a Recipe
 exports.unsaveRecipe = async (req, res) => {
     try {
-        const { recipeId } = req.params;
+        const { id } = req.params; // Changed from recipeId to id
         const userId = req.user.id;
 
-        const recipe = await Recipe.findById(recipeId);
+        const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
         recipe.savedBy = recipe.savedBy.filter((id) => id.toString() !== userId);
@@ -177,7 +235,7 @@ exports.unsaveRecipe = async (req, res) => {
 
 exports.saveDraft = async (req, res) => {
     try {
-        const { title, description, ingredients, instructions, cookingTime, recipeType, image } = req.body;
+        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image } = req.body;
         const author = req.user.id;
 
         const newDraft = new Recipe({
@@ -186,6 +244,9 @@ exports.saveDraft = async (req, res) => {
             ingredients,
             instructions,
             cookingTime,
+            prepTime,
+            servings,
+            difficulty,
             recipeType,
             image,
             author,
@@ -200,93 +261,18 @@ exports.saveDraft = async (req, res) => {
     }
 };
 
-exports.addRecipe = async (req, res) => {
-    try {
-        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image } = req.body;
-        const author = req.user.id;
-        const recipe = new Recipe({
-            title,
-            description,
-            ingredients,
-            instructions,
-            cookingTime,
-            prepTime,
-            servings,
-            difficulty,
-            recipeType,
-            image,
-            author,
-            status: "Published",
-        });
-        await recipe.save();
-        res.status(201).json({ message: "Recipe added", recipeId: recipe._id });
-    } catch (error) {
-        console.error("Error adding recipe:", error);
-        res.status(500).json({ message: "Something went wrong" });
-    }
-};
-
-exports.editRecipe = async (req, res) => {
-    try {
-        const { recipeId } = req.params;
-        const { title, description, ingredients, instructions, cookingTime, prepTime, servings, difficulty, recipeType, image } = req.body;
-        const recipe = await Recipe.findOne({ _id: recipeId, author: req.user.id });
-        if (!recipe) return res.status(404).json({ message: "Recipe not found or not authorized" });
-
-        recipe.title = title;
-        recipe.description = description;
-        recipe.ingredients = ingredients;
-        recipe.instructions = instructions;
-        recipe.cookingTime = cookingTime;
-        recipe.prepTime = prepTime;
-        recipe.servings = servings;
-        recipe.difficulty = difficulty;
-        recipe.recipeType = recipeType;
-        recipe.image = image;
-
-        await recipe.save();
-        res.status(200).json({ message: "Recipe updated", recipeId: recipe._id });
-    } catch (error) {
-        console.error("Error updating recipe:", error);
-        res.status(500).json({ message: "Something went wrong" });
-    }
-};
-
-exports.getRecipeById = async (req, res) => {
-    try {
-        const recipe = await Recipe.findById(req.params.id).populate("author", "username");
-        if (!recipe) return res.status(404).json({ message: "Recipe not found" });
-        res.status(200).json(recipe);
-    } catch (error) {
-        console.error("Error fetching recipe:", error);
-        res.status(500).json({ message: "Something went wrong" });
-    }
-};
-
-// Share Recipe
 exports.shareRecipe = async (req, res) => {
     try {
-        const { recipeId } = req.params;
-        const recipe = await Recipe.findById(recipeId);
+        const { id } = req.params; // Changed from recipeId to id
+        const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
-        const shareLink = `${process.env.FRONTEND_URL}/recipe/${recipeId}`;
-        res.json({ message: "Share link ready", shareLink });
+        const shareLink = `${process.env.FRONTEND_URL}/recipe/${id}`;
+        res.status(200).json({ message: "Share link ready", shareLink });
     } catch (error) {
         console.error("Error sharing recipe:", error);
         res.status(500).json({ message: "Something went wrong" });
     }
 };
-// Add to backend/controllers/recipeController.js
-exports.getTrendingRecipes = async (req, res) => {
-    try {
-        const trendingRecipes = await Recipe.find({ status: "Published" })
-            .sort({ "likes.length": -1 })
-            .limit(10)
-            .populate("author", "username profileImage");
-        res.status(200).json(trendingRecipes);
-    } catch (error) {
-        console.error("Error fetching trending recipes:", error);
-        res.status(500).json({ message: "Something went wrong" });
-    }
-};
+
+module.exports = exports;

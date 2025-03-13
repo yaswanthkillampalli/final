@@ -1,31 +1,34 @@
 // src/pages/Trending.jsx
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added Link for New Post button
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import RecipeCard from "../components/RecipeCard";
-import Filter from "../components/Filter"; // Added Filter component
+import Filter from "../components/Filter";
 import { fetchTrendingRecipes } from "../api/axiosInstance";
 import "../styles.css";
 
 export default function Trending() {
-    const navigate = useNavigate();
     const [trendingRecipes, setTrendingRecipes] = useState([]);
-    const [filteredRecipes, setFilteredRecipes] = useState([]); // Added for filtering
-    const isLoggedIn = !!sessionStorage.getItem("token"); // Changed to sessionStorage
-    const offcanvasRef = useRef(null); // Ref for offcanvas control
+    const [filteredRecipes, setFilteredRecipes] = useState([]);
+    const [error, setError] = useState(null); // Added for error display
+    const isLoggedIn = !!sessionStorage.getItem("token");
+    const currentUserId = sessionStorage.getItem("userId");
+    const offcanvasRef = useRef(null);
 
     useEffect(() => {
         const loadTrendingRecipes = async () => {
             try {
                 const data = await fetchTrendingRecipes();
-                setTrendingRecipes(data);
-                setFilteredRecipes(data); // Initialize filteredRecipes
+                const userFilteredRecipes = data.filter(recipe => recipe.author._id.toString() !== currentUserId);
+                setTrendingRecipes(userFilteredRecipes);
+                setFilteredRecipes(userFilteredRecipes);
             } catch (error) {
                 console.error("Error fetching trending recipes:", error);
+                setError("Failed to load trending recipes. Please try again later.");
             }
         };
         loadTrendingRecipes();
-    }, []);
+    }, [currentUserId]);
 
     const applyFilters = ({ category, cookingTime }) => {
         let filtered = trendingRecipes;
@@ -45,12 +48,13 @@ export default function Trending() {
         }
 
         setFilteredRecipes(filtered);
-        // Close offcanvas programmatically
         if (offcanvasRef.current) {
             const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasRef.current);
             offcanvas?.hide();
         }
     };
+
+    if (error) return <p className="error-text">{error}</p>;
 
     return (
         <>
