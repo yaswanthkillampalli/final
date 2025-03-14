@@ -266,7 +266,6 @@ exports.shareRecipe = async (req, res) => {
         const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
-        // Generate a shareable link (adjust based on your frontend URL)
         const shareLink = `https://recipe-frontend.onrender.com/recipe/${id}`;
         res.status(200).json({ shareLink });
     } catch (error) {
@@ -279,36 +278,44 @@ exports.shareRecipe = async (req, res) => {
 exports.isUserLiked = async (req, res) => {
     try {
         const { recipeId } = req.params;
-        const userId = req.user._id; // Assuming user ID is available from auth middleware
+        const userId = req.user.id; // From middleware
+        
 
         const recipe = await Recipe.findById(recipeId);
         if (!recipe) {
             return res.status(404).json({ message: "Recipe not found" });
         }
+    
+        const hasLiked = recipe.likedBy && Array.isArray(recipe.likedBy)
+            ? recipe.likedBy.some(id => id && id.toString() === userId.toString())
+            : false;
 
-        const hasLiked = recipe.likedBy.some(id => id.toString() === userId.toString());
         return res.status(200).json({ isLiked: hasLiked });
     } catch (error) {
-        console.error("Error in isUserLiked:", error);
-        return res.status(500).json({ message: "Server error" });
+        console.error("Error in isUserLiked:", error.stack);
+        return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 
 exports.isUserSaved = async (req, res) => {
     try {
         const { recipeId } = req.params;
-        const userId = req.user._id; // Assuming user ID is available from auth middleware
+        const userId = req.user.id;
 
         const recipe = await Recipe.findById(recipeId);
         if (!recipe) {
+            console.log("Recipe not found for ID:", recipeId);
             return res.status(404).json({ message: "Recipe not found" });
         }
 
-        const hasSaved = recipe.savedBy.some(id => id.toString() === userId.toString());
+        const hasSaved = recipe.savedBy && Array.isArray(recipe.savedBy)
+            ? recipe.savedBy.some(id => id && id.toString() === userId.toString())
+            : false;
+
         return res.status(200).json({ isSaved: hasSaved });
     } catch (error) {
-        console.error("Error in isUserSaved:", error);
-        return res.status(500).json({ message: "Server error" });
+        console.error("Error in isUserSaved:", error.stack);
+        return res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 

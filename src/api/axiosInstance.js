@@ -6,29 +6,27 @@ const API = axios.create({
     headers: { "Content-Type": "application/json" },
 });
 
-API.interceptors.request.use(
-    (config) => {
-        const token = sessionStorage.getItem("token");
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
-
-/* ========================
-    🛠️ AUTHENTICATION REQUESTS
-======================== */
 export const registerUser = async (userData) => {
     try {
-        const response = await API.post("/users/register", userData);
+        const response = await API.post("users/register", userData);
         return response.data;
     } catch (error) {
         console.error("Error registering user:", error);
         throw error;
     }
 };
+
+API.interceptors.request.use((config) => {
+    const token = sessionStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = token; // Raw token
+    }
+    return config;
+});
+
+/* ========================
+    🛠️ AUTHENTICATION REQUESTS
+======================== */
 
 export const loginUser = async (credentials) => {
     try {
@@ -315,8 +313,8 @@ export const searchRecipes = async (query) => {
 };
 
 export const checkIsLiked = (recipeId) =>
-    instance.get(`/recipes/${recipeId}/is-liked`).then((res) => res.data);
+    API.get(`/recipes/${recipeId}/is-liked`).then((res) => res.data);
 
 export const checkIsSaved = (recipeId) =>
-    instance.get(`/recipes/${recipeId}/is-saved`).then((res) => res.data);
+    API.get(`/recipes/${recipeId}/is-saved`).then((res) => res.data);
 export default API;

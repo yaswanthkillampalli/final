@@ -1,27 +1,43 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User"); // Import User model
+const User = require("../models/User");
 
 module.exports = async (req, res, next) => {
     const authHeader = req.header("Authorization");
+    console.log("Auth Header:", authHeader);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "No token provided or format incorrect" });
+    if (!authHeader) {
+        console.log("No authorization header provided");
+        return res.status(401).json({ error: "No token provided" });
     }
 
-    const token = authHeader.split(" ")[1]; // Extract token from 'Bearer <token>'
+    // Handle both raw token and Bearer format
+    let token = authHeader;
+    if (authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+    }
+    console.log("Token:", token);
+
+    if (!token) {
+        console.log("No token extracted");
+        return res.status(401).json({ error: "No token provided" });
+    }
 
     try {
+        console.log("JWT_SECRET:", process.env.JWT_SECRET);
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("Decoded:", decoded);
 
-        // Fetch full user details (excluding password)
         const user = await User.findById(decoded.id).select("-password");
         if (!user) {
+            console.log("User not found for ID:", decoded.id);
             return res.status(404).json({ error: "User not found" });
         }
 
-        req.user = { id: user._id, username: user.username, email: user.email }; // ✅ Store full user info
+        req.user = { id: user._id, username: user.username, email: user.email };
+        console.log("User set:", req.user);
         next();
     } catch (error) {
-        return res.status(403).json({ error: "Invalid or expired token" }); // 🛑 Use 403 instead of 400
+        console.error("Token verification error:", error.message);
+        return res.status(403).json({ error: "Invalid or expired token" });
     }
 };

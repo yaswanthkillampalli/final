@@ -14,15 +14,23 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: "https://yaswanthbackend.onrender.com", // Update with actual frontend URL
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl) or if origin is localhost
+    if (!origin || origin.startsWith("http://localhost:")) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true
 }));
-app.use(express.json());
+
+app.use(express.json()); // Ensure body parsing
 
 // Connect to MongoDB before starting the server
 connectDB().then(() => {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
 }).catch(error => {
   console.error("❌ MongoDB Connection Failed:", error.message);
   process.exit(1); // Exit if database connection fails

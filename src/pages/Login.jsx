@@ -20,6 +20,7 @@ export default function Login() {
             sessionStorage.setItem("token", response.token);
             sessionStorage.setItem("userId", response.userId);
             navigate("/home");
+            window.location.reload();
         } catch (error) {
             setMessage(error.response?.data?.message || "Login failed. Please try again.");
         }
