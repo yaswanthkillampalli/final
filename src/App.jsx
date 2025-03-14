@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// src/App.jsx
+import { useState } from "react"; // Removed useEffect import
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Trending from "./pages/Trending";
@@ -13,20 +14,12 @@ import Saved from "./pages/Saved";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Recipe from "./pages/Recipe";
+import Logout from "./pages/Logout";
 import Navbar from "./components/Navbar";
 import "./styles.css";
 
 export default function App() {
-    const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
-
-    // Listen for token changes (e.g., logout or login in another tab)
-    useEffect(() => {
-        const handleStorageChange = () => {
-            setIsLoggedIn(!!localStorage.getItem("token"));
-        };
-        window.addEventListener("storage", handleStorageChange);
-        return () => window.removeEventListener("storage", handleStorageChange);
-    }, []);
+    const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem("token")); // Initial state only
 
     return (
         <Router>
@@ -49,7 +42,7 @@ export default function App() {
                         <Route path="/published" element={<Published />} />
                         <Route path="/liked" element={<Liked />} />
                         <Route path="/saved" element={<Saved />} />
-                        <Route path="/edit/:recipeId" element={<NewPost />} /> {/* Added edit route */}
+                        <Route path="/edit/:recipeId" element={<NewPost />} />
                     </>
                 ) : (
                     <>
@@ -58,13 +51,14 @@ export default function App() {
                         <Route path="/published" element={<Navigate to="/login" />} />
                         <Route path="/liked" element={<Navigate to="/login" />} />
                         <Route path="/saved" element={<Navigate to="/login" />} />
-                        <Route path="/edit/:recipeId" element={<Navigate to="/login" />} /> {/* Added edit redirect */}
+                        <Route path="/edit/:recipeId" element={<Navigate to="/login" />} />
                     </>
                 )}
 
                 {/* Authentication Routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/logout" element={<Logout />} />
 
                 {/* 404 Page */}
                 <Route path="*" element={<h2 className="container text-center mt-5">404 - Page Not Found</h2>} />

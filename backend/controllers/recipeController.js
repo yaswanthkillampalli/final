@@ -260,18 +260,55 @@ exports.saveDraft = async (req, res) => {
         res.status(500).json({ message: "Something went wrong" });
     }
 };
-
 exports.shareRecipe = async (req, res) => {
     try {
-        const { id } = req.params; // Changed from recipeId to id
+        const { id } = req.params;
         const recipe = await Recipe.findById(id);
         if (!recipe) return res.status(404).json({ message: "Recipe not found" });
 
-        const shareLink = `${process.env.FRONTEND_URL}/recipe/${id}`;
-        res.status(200).json({ message: "Share link ready", shareLink });
+        // Generate a shareable link (adjust based on your frontend URL)
+        const shareLink = `https://recipe-frontend.onrender.com/recipe/${id}`;
+        res.status(200).json({ shareLink });
     } catch (error) {
         console.error("Error sharing recipe:", error);
         res.status(500).json({ message: "Something went wrong" });
+    }
+};
+
+
+exports.isUserLiked = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const userId = req.user._id; // Assuming user ID is available from auth middleware
+
+        const recipe = await Recipe.findById(recipeId);
+        if (!recipe) {
+            return res.status(404).json({ message: "Recipe not found" });
+        }
+
+        const hasLiked = recipe.likedBy.some(id => id.toString() === userId.toString());
+        return res.status(200).json({ isLiked: hasLiked });
+    } catch (error) {
+        console.error("Error in isUserLiked:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+exports.isUserSaved = async (req, res) => {
+    try {
+        const { recipeId } = req.params;
+        const userId = req.user._id; // Assuming user ID is available from auth middleware
+
+        const recipe = await Recipe.findById(recipeId);
+        if (!recipe) {
+            return res.status(404).json({ message: "Recipe not found" });
+        }
+
+        const hasSaved = recipe.savedBy.some(id => id.toString() === userId.toString());
+        return res.status(200).json({ isSaved: hasSaved });
+    } catch (error) {
+        console.error("Error in isUserSaved:", error);
+        return res.status(500).json({ message: "Server error" });
     }
 };
 

@@ -99,6 +99,7 @@
 
 /* Navbar.css */
 /* Navbar */
+
 .navbar {
     background-color: green;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -297,11 +298,10 @@
 }
 
 .like-btn.liked {
-    color: #e74c3c; /* Red color for liked state */
+    color: red; /* Filled heart color */
 }
-
 .save-btn.saved {
-    color: #f1c40f; /* Yellow color for saved state */
+    color: blue; /* Filled bookmark color */
 }
 
 .save-btn {

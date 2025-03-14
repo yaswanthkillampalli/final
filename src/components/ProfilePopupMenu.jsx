@@ -1,18 +1,8 @@
 // src/components/ProfilePopupMenu.jsx
-import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import "../styles.css";
 
-export default function ProfilePopupMenu({ user, setUser }) {
-    const navigate = useNavigate();
-
-    const handleLogout = () => {
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("userId");
-        setUser(null); // Reset user state in parent (e.g., Navbar)
-        navigate("/login", { replace: true });
-    };
-
+export default function ProfilePopupMenu({ user, onLogout }) {
     return (
         <div className="dropdown">
             <a
@@ -32,11 +22,9 @@ export default function ProfilePopupMenu({ user, setUser }) {
                 <li><Link className="dropdown-item" to="/published">Published</Link></li>
                 <li><Link className="dropdown-item" to="/liked">Liked</Link></li>
                 <li><Link className="dropdown-item" to="/saved">Saved</Link></li>
-                {/* Uncomment if you plan to add Change Password later */}
-                {/* <li><Link className="dropdown-item" to="/change-password">Change Password</Link></li> */}
                 <li><hr className="dropdown-divider" /></li>
                 <li>
-                    <button className="dropdown-item logout-btn" onClick={handleLogout}>
+                    <button className="dropdown-item logout-btn" onClick={onLogout}>
                         Logout
                     </button>
                 </li>

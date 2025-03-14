@@ -11,17 +11,16 @@ export default function Published() {
     const [error, setError] = useState(null);
     const isLoggedIn = !!sessionStorage.getItem("token");
     const currentUserId = sessionStorage.getItem("userId");
-    // src/pages/Published.jsx (excerpt)
-
-
-// Inside the render:
 
     useEffect(() => {
         const loadPublishedRecipes = async () => {
             try {
                 const data = await fetchRecipes();
-                const userFilteredRecipes = data.filter(recipe => recipe.author._id.toString() !== currentUserId);
-                setPublishedRecipes(userFilteredRecipes);
+                // Filter to show only the current user's published recipes
+                const userPublishedRecipes = data.filter(
+                    (recipe) => recipe.author?._id?.toString() === currentUserId
+                );
+                setPublishedRecipes(userPublishedRecipes);
             } catch (error) {
                 console.error("Error fetching published recipes:", error);
                 setError("Failed to load published recipes. Please try again later.");
@@ -33,8 +32,8 @@ export default function Published() {
     }, [currentUserId]);
 
     const handleRecipeUpdate = (updatedRecipe) => {
-        setPublishedRecipes(prevRecipes =>
-            prevRecipes.map(r => (r._id === updatedRecipe._id ? updatedRecipe : r))
+        setPublishedRecipes((prevRecipes) =>
+            prevRecipes.map((r) => (r._id === updatedRecipe._id ? updatedRecipe : r))
         );
     };
 
@@ -53,7 +52,10 @@ export default function Published() {
                         ) : (
                             publishedRecipes.map((recipe) => (
                                 <div className="col-md-4 col-lg-4 col-xl-3" key={recipe._id}>
-                                    <RecipeCard recipe={recipe} onUpdate={handleRecipeUpdate} />
+                                    <RecipeCard
+                                        recipe={recipe}
+                                        onUpdate={handleRecipeUpdate}
+                                    />
                                 </div>
                             ))
                         )}

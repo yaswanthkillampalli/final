@@ -299,16 +299,11 @@ export const saveDraft = async (recipeData) => {
     }
 };
 
+// src/api/axiosInstance.js
 export const shareRecipe = async (recipeId) => {
-    try {
-        const response = await API.post(`/recipes/${recipeId}/share`);
-        return response.data;
-    } catch (error) {
-        console.error("Error sharing recipe:", error);
-        throw error;
-    }
+    const response = await axiosInstance.post(`/recipes/${recipeId}/share`);
+    return response.data;
 };
-
 export const searchRecipes = async (query) => {
     try {
         const response = await API.get(`/recipes/search?query=${encodeURIComponent(query)}`);
@@ -319,4 +314,9 @@ export const searchRecipes = async (query) => {
     }
 };
 
+export const checkIsLiked = (recipeId) =>
+    instance.get(`/recipes/${recipeId}/is-liked`).then((res) => res.data);
+
+export const checkIsSaved = (recipeId) =>
+    instance.get(`/recipes/${recipeId}/is-saved`).then((res) => res.data);
 export default API;

@@ -9,7 +9,8 @@ import {
     removeSavedRecipe,
     shareRecipe,
     followUserByUsername,
-    fetchCurrentUser // Add this import
+    unfollowUserByUsername,
+    fetchCurrentUser,
 } from "../api/axiosInstance";
 import Navbar from "../components/Navbar";
 import "../styles.css";
@@ -40,10 +41,12 @@ export default function Recipe() {
                 console.log("✅ Recipe fetched:", data);
                 setRecipe(data);
                 if (currentUserId) {
-                    setIsLiked(data.likedBy?.some(userId => userId.toString() === currentUserId));
-                    setIsSaved(data.savedBy?.some(userId => userId.toString() === currentUserId));
-                    const currentUser = await fetchCurrentUser(); // This was undefined without import
-                    setIsFollowing(currentUser.following.some(user => user._id.toString() === data.author?._id?.toString()));
+                    setIsLiked(data.likedBy?.some((userId) => userId.toString() === currentUserId) || false);
+                    setIsSaved(data.savedBy?.some((userId) => userId.toString() === currentUserId) || false);
+                    const currentUser = await fetchCurrentUser();
+                    setIsFollowing(
+                        currentUser.following.some((user) => user._id.toString() === data.author?._id?.toString())
+                    );
                 }
             } catch (err) {
                 console.error("❌ Error fetching recipe:", err);
@@ -62,14 +65,17 @@ export default function Recipe() {
             if (isLiked) {
                 await unlikeRecipe(id);
                 setIsLiked(false);
-                setRecipe(prev => ({ ...prev, likes: prev.likes.filter(userId => userId.toString() !== currentUserId) }));
             } else {
                 await likeRecipe(id);
                 setIsLiked(true);
-                setRecipe(prev => ({ ...prev, likes: [...prev.likes, currentUserId] }));
             }
+            // Refetch the recipe to sync with the backend
+            const updatedRecipe = await fetchRecipeById(id);
+            setRecipe(updatedRecipe);
+            setIsLiked(updatedRecipe.likedBy?.some((userId) => userId.toString() === currentUserId) || false);
         } catch (err) {
             console.error("❌ Error toggling like:", err);
+            alert("Failed to toggle like. Please try again.");
         }
     };
 
@@ -83,22 +89,50 @@ export default function Recipe() {
                 await saveRecipe(id);
                 setIsSaved(true);
             }
+            // Refetch the recipe to sync with the backend
+            const updatedRecipe = await fetchRecipeById(id);
+            setRecipe(updatedRecipe);
+            setIsSaved(updatedRecipe.savedBy?.some((userId) => userId.toString() === currentUserId) || false);
         } catch (err) {
             console.error("❌ Error toggling save:", err);
+            alert("Failed to toggle save. Please try again.");
         }
     };
 
-    const handleShare = () => {
-        shareRecipe(id);
+    const handleShare = async () => {
+        try {
+            if (isLoggedIn) {
+                const response = await shareRecipe(id);
+                if (response.shareLink) {
+                    await navigator.clipboard.writeText(response.shareLink);
+                    alert("Share link copied to clipboard!");
+                } else {
+                    throw new Error("Share link not provided by the server.");
+                }
+            } else {
+                const shareLink = `${window.location.origin}/recipe/${id}`;
+                await navigator.clipboard.writeText(shareLink);
+                alert("Share link copied to clipboard!");
+            }
+        } catch (error) {
+            console.error("❌ Error sharing recipe:", error);
+            alert("Failed to copy share link. Please try again.");
+        }
     };
 
-    const handleFollow = async () => {
+    const handleFollowToggle = async () => {
         if (!isLoggedIn) return alert("Please log in to follow users.");
         try {
-            await followUserByUsername(recipe.author.username);
-            setIsFollowing(true);
+            if (isFollowing) {
+                await unfollowUserByUsername(recipe.author.username);
+                setIsFollowing(false);
+            } else {
+                await followUserByUsername(recipe.author.username);
+                setIsFollowing(true);
+            }
         } catch (error) {
-            console.error("❌ Error following user:", error);
+            console.error("❌ Error toggling follow:", error);
+            alert("Failed to toggle follow. Please try again.");
         }
     };
 
@@ -124,9 +158,9 @@ export default function Recipe() {
                         {isLoggedIn && currentUserId !== recipe.author?._id?.toString() && (
                             <button
                                 className={`follow-btn ${isFollowing ? "following" : ""}`}
-                                onClick={handleFollow}
+                                onClick={handleFollowToggle}
                             >
-                                {isFollowing ? "Following" : "Follow"}
+                                {isFollowing ? "Unfollow" : "Follow"}
                             </button>
                         )}
                     </div>

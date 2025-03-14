@@ -20,7 +20,6 @@ export default function Home() {
         const loadRecipes = async () => {
             try {
                 const data = await fetchRecipes();
-                // Exclude current user's recipes
                 const userFilteredRecipes = data.filter(recipe => recipe.author._id.toString() !== currentUserId);
                 setRecipes(userFilteredRecipes);
                 applyFilters(filters, userFilteredRecipes); // Apply initial filters
@@ -99,7 +98,7 @@ export default function Home() {
                         data-bs-target="#filterOffcanvas"
                         title="Filters"
                     >
-                        🔍
+                    🔍
                     </button>
                     <Link to="/newpost" className="floating-btn new-post-btn" title="New Recipe">
                         ➕

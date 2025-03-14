@@ -1,45 +1,62 @@
 // src/components/RecipeCard.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { likeRecipe, unlikeRecipe, saveRecipe, removeSavedRecipe, shareRecipe, followUserByUsername, unfollowUserByUsername, fetchCurrentUser, fetchRecipeById } from "../api/axiosInstance";
+import {
+    likeRecipe,
+    unlikeRecipe,
+    saveRecipe,
+    removeSavedRecipe,
+    shareRecipe,
+    followUserByUsername,
+    unfollowUserByUsername,
+    fetchCurrentUser,
+    checkIsLiked, // New API call
+    checkIsSaved, // New API call
+} from "../api/axiosInstance";
 import "../styles.css";
 
 export default function RecipeCard({ recipe, onUpdate }) {
     const navigate = useNavigate();
-    const [isLiked, setIsLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(recipe.likes?.length || 0);
-    const [isSaved, setIsSaved] = useState(false);
-    const [isFollowing, setIsFollowing] = useState(false);
-    const isLoggedIn = !!sessionStorage.getItem("token");
-    const currentUserId = sessionStorage.getItem("userId");
+    const [isLiked, setIsLiked] = useState(false); // Tracks if current user liked the recipe
+    const [likeCount, setLikeCount] = useState(recipe.likes?.length || 0); // Total likes
+    const [isSaved, setIsSaved] = useState(false); // Tracks if current user saved the recipe
+    const [isFollowing, setIsFollowing] = useState(false); // Tracks if current user follows the author
+    const isLoggedIn = !!sessionStorage.getItem("token"); // Check login status
+    const currentUserId = sessionStorage.getItem("userId"); // Current user's ID
 
     useEffect(() => {
         const initializeStates = async () => {
-            if (currentUserId) {
+            if (currentUserId && isLoggedIn) {
                 try {
-                    // Fetch the latest recipe data to ensure accuracy
-                    const updatedRecipe = await fetchRecipeById(recipe._id);
-                    setIsLiked(updatedRecipe.likedBy?.some(id => id.toString() === currentUserId) || false);
-                    setIsSaved(updatedRecipe.savedBy?.some(id => id.toString() === currentUserId) || false);
-                    setLikeCount(updatedRecipe.likes?.length || 0);
+                    // Fetch like and save status from new endpoints
+                    const likeStatus = await checkIsLiked(recipe._id);
+                    setIsLiked(likeStatus.isLiked);
 
-                    // Check if the current user is following the recipe author
+                    const saveStatus = await checkIsSaved(recipe._id);
+                    setIsSaved(saveStatus.isSaved);
+
+                    // Set initial like count from recipe prop
+                    setLikeCount(recipe.likes?.length || 0);
+
+                    // Check if user follows the recipe author
                     const currentUser = await fetchCurrentUser();
                     setIsFollowing(
-                        currentUser.following.some(user => user._id.toString() === recipe.author?._id?.toString())
+                        currentUser.following.some(
+                            (user) => user._id.toString() === recipe.author?._id?.toString()
+                        )
                     );
                 } catch (error) {
                     console.error("Error initializing states:", error);
-                    // Fallback to props if fetch fails
-                    setIsLiked(recipe.likedBy?.some(id => id.toString() === currentUserId) || false);
-                    setIsSaved(recipe.savedBy?.some(id => id.toString() === currentUserId) || false);
+                    // Fallback to recipe prop data if API fails
+                    setIsLiked(recipe.likedBy?.some((id) => id.toString() === currentUserId) || false);
+                    setIsSaved(recipe.savedBy?.some((id) => id.toString() === currentUserId) || false);
                     setLikeCount(recipe.likes?.length || 0);
                 }
             }
         };
 
         initializeStates();
-    }, [recipe._id, currentUserId]); // Re-run if recipe ID or user ID changes
+    }, [recipe._id, currentUserId, isLoggedIn]);
 
     const handleLikeToggle = async (e) => {
         e.preventDefault();
@@ -48,17 +65,21 @@ export default function RecipeCard({ recipe, onUpdate }) {
             if (isLiked) {
                 await unlikeRecipe(recipe._id);
                 setIsLiked(false);
-                setLikeCount(prev => prev - 1);
+                setLikeCount((prev) => prev - 1);
             } else {
                 await likeRecipe(recipe._id);
                 setIsLiked(true);
-                setLikeCount(prev => prev + 1);
+                setLikeCount((prev) => prev + 1);
             }
-            // Refetch the recipe to ensure state is in sync with the server
-            const updatedRecipe = await fetchRecipeById(recipe._id);
-            setIsLiked(updatedRecipe.likedBy?.some(id => id.toString() === currentUserId) || false);
-            setLikeCount(updatedRecipe.likes?.length || 0);
-            if (onUpdate) onUpdate(updatedRecipe); // Notify parent component of update
+            if (onUpdate) {
+                const updatedRecipe = {
+                    ...recipe,
+                    likedBy: isLiked
+                        ? recipe.likedBy.filter((id) => id.toString() !== currentUserId)
+                        : [...recipe.likedBy, currentUserId],
+                };
+                onUpdate(updatedRecipe);
+            }
         } catch (error) {
             console.error("❌ Error toggling like:", error);
         }
@@ -75,10 +96,15 @@ export default function RecipeCard({ recipe, onUpdate }) {
                 await saveRecipe(recipe._id);
                 setIsSaved(true);
             }
-            // Refetch the recipe to ensure state is in sync with the server
-            const updatedRecipe = await fetchRecipeById(recipe._id);
-            setIsSaved(updatedRecipe.savedBy?.some(id => id.toString() === currentUserId) || false);
-            if (onUpdate) onUpdate(updatedRecipe);
+            if (onUpdate) {
+                const updatedRecipe = {
+                    ...recipe,
+                    savedBy: isSaved
+                        ? recipe.savedBy.filter((id) => id.toString() !== currentUserId)
+                        : [...recipe.savedBy, currentUserId],
+                };
+                onUpdate(updatedRecipe);
+            }
         } catch (error) {
             console.error("❌ Error toggling save:", error);
         }
@@ -87,13 +113,22 @@ export default function RecipeCard({ recipe, onUpdate }) {
     const handleShare = async (e) => {
         e.preventDefault();
         try {
-            const response = await shareRecipe(recipe._id);
-            if (response.shareLink) {
-                navigator.clipboard.writeText(response.shareLink);
+            if (isLoggedIn) {
+                const response = await shareRecipe(recipe._id);
+                if (response.shareLink) {
+                    await navigator.clipboard.writeText(response.shareLink);
+                    alert("Share link copied to clipboard!");
+                } else {
+                    throw new Error("Share link not provided by the server.");
+                }
+            } else {
+                const shareLink = `${window.location.origin}/recipe/${recipe._id}`;
+                await navigator.clipboard.writeText(shareLink);
                 alert("Share link copied to clipboard!");
             }
         } catch (error) {
             console.error("❌ Error sharing recipe:", error);
+            alert("Failed to copy share link. Please try again.");
         }
     };
 
@@ -165,7 +200,8 @@ export default function RecipeCard({ recipe, onUpdate }) {
                                 onClick={handleLikeToggle}
                                 title={isLiked ? "Unlike" : "Like"}
                             >
-                                <i className={`fa-heart ${isLiked ? "fas liked" : "far"}`}></i>
+                                <i className={`fa-heart ${isLiked ? "fas" : "far"}`}></i>
+                                {/* Alternative with emojis: {isLiked ? "❤️" : "♡"} */}
                             </button>
                             <button className="share-btn" onClick={handleShare} title="Share">
                                 <i className="fa-solid fa-paper-plane"></i>
@@ -175,7 +211,8 @@ export default function RecipeCard({ recipe, onUpdate }) {
                                 onClick={handleSaveToggle}
                                 title={isSaved ? "Unsave" : "Save"}
                             >
-                                <i className={`fa-bookmark ${isSaved ? "fas saved" : "far"}`}></i>
+                                <i className={`fa-bookmark ${isSaved ? "fas" : "far"}`}></i>
+                                {/* Alternative with emojis: {isSaved ? "🔖" : "☑️"} */}
                             </button>
                         </>
                     ) : (
@@ -185,14 +222,7 @@ export default function RecipeCard({ recipe, onUpdate }) {
                     )}
                 </div>
             </div>
-            {isLoggedIn && currentUserId === recipe.author?._id?.toString() && (
-                <Link
-                    to={`/edit/${recipe._id}`}
-                    className="btn btn-sm btn-outline-primary mt-2 w-100"
-                >
-                    Edit Recipe
-                </Link>
-            )}
+
             <Link
                 to={`/recipe/${recipe._id}`}
                 className="btn btn-sm btn-outline-success mt-2 w-100"
@@ -200,7 +230,11 @@ export default function RecipeCard({ recipe, onUpdate }) {
             >
                 View Recipe
             </Link>
-            
+            {isLoggedIn && currentUserId === recipe.author?._id?.toString() && (
+                <Link to={`/edit/${recipe._id}`} className="btn btn-sm btn-outline-primary mt-2 w-100">
+                    Edit Recipe
+                </Link>
+            )}
         </div>
     );
 }

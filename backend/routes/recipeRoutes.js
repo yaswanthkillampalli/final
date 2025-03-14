@@ -15,6 +15,8 @@ const {
     unsaveRecipe,
     saveDraft,
     shareRecipe,
+    isUserLiked,
+    isUserSaved,
 } = require("../controllers/recipeController");
 const authenticate = require("../middleware/authMiddleware");
 
@@ -30,6 +32,8 @@ router.post("/:id/like", authenticate, likeRecipe); // Like/unlike recipe
 router.post("/:id/save", authenticate, saveRecipe); // Save recipe
 router.post("/:id/unsave", authenticate, unsaveRecipe); // Unsave recipe
 router.post("/draft", authenticate, saveDraft); // Save draft
-router.post("/:id/share", authenticate, shareRecipe); // Share recipe
+router.post("/:id/share", shareRecipe); // Share recipe
+router.get("/:recipeId/is-liked", authenticate, isUserLiked);
+router.get("/:recipeId/is-saved", authenticate, isUserSaved);
 
 module.exports = router;
