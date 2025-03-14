@@ -14,7 +14,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: "https://your-frontend.onrender.com", // Update with actual frontend URL
+  origin: "https://yaswanthbackend.onrender.com", // Update with actual frontend URL
   credentials: true
 }));
 app.use(express.json());
